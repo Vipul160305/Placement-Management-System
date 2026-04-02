@@ -38,7 +38,7 @@ const Analytics = () => {
 
   const totalStudents = data.placementStatus.reduce((acc, curr) => acc + curr.value, 0);
   const placedStudents = data.placementStatus.find(s => s.name === 'Placed')?.value || 0;
-  const placementPercentage = Math.round((placedStudents / totalStudents) * 100);
+  const placementPercentage = totalStudents > 0 ? Math.round((placedStudents / totalStudents) * 100) : 0;
 
   return (
     <div className="space-y-6">

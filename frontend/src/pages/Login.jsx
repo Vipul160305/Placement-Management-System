@@ -1,6 +1,17 @@
+import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Navigate } from 'react-router-dom';
-import { ShieldCheck, User, Users, Briefcase, GraduationCap, ArrowRight } from 'lucide-react';
+import { Navigate, useNavigate } from 'react-router-dom';
+import {
+  GraduationCap,
+  Loader2,
+  ShieldCheck,
+  User,
+  Users,
+  Briefcase,
+  ArrowRight,
+  ArrowLeft,
+} from 'lucide-react';
+import { useToast } from '../context/ToastContext';
 
 const roles = [
   {
@@ -37,13 +48,13 @@ const roles = [
   },
 ];
 
-const RoleCard = ({ role, label, description, icon: Icon, accent, lightBg, onClick }) => (
+const RoleCard = ({ label, description, icon: Icon, accent, lightBg, onClick }) => (
   <button
+    type="button"
     onClick={onClick}
     className="group w-full text-left rounded-xl border border-gray-100 bg-white hover:border-transparent hover:shadow-lg transition-all duration-250 p-4 flex items-center gap-4 relative overflow-hidden"
     style={{ '--accent': accent }}
   >
-    {/* hover highlight bar */}
     <span
       className="absolute left-0 top-0 h-full w-1 rounded-l-xl opacity-0 group-hover:opacity-100 transition-opacity duration-200"
       style={{ background: accent }}
@@ -69,18 +80,59 @@ const RoleCard = ({ role, label, description, icon: Icon, accent, lightBg, onCli
 );
 
 const Login = () => {
-  const { login, isAuthenticated } = useAuth();
+  const { login, logout, isAuthenticated } = useAuth();
+  const navigate = useNavigate();
+  const { addToast } = useToast();
+  const [step, setStep] = useState('choose');
+  const [selectedRole, setSelectedRole] = useState(null);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  const selectedMeta = roles.find((r) => r.role === selectedRole);
 
   if (isAuthenticated) return <Navigate to="/" replace />;
 
+  const goBackToRoles = () => {
+    setStep('choose');
+    setSelectedRole(null);
+    setEmail('');
+    setPassword('');
+  };
+
+  const handleChooseRole = (role) => {
+    setSelectedRole(role);
+    setStep('credentials');
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setSubmitting(true);
+    try {
+      const user = await login({ email: email.trim(), password });
+      if (user.role !== selectedRole) {
+        await logout();
+        addToast(
+          `This account is signed up as ${user.role}. Go back and choose that role, or use different credentials.`,
+          'error'
+        );
+        return;
+      }
+      addToast('Signed in successfully', 'success');
+      navigate('/', { replace: true });
+    } catch (err) {
+      addToast(err.message || 'Sign in failed', 'error');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   return (
     <div className="min-h-screen flex bg-white">
-      {/* ── Left brand panel ── */}
       <div
         className="hidden lg:flex lg:w-[44%] xl:w-[42%] flex-col justify-between p-10 relative overflow-hidden"
         style={{ background: 'linear-gradient(145deg, #002a52 0%, #003466 55%, #004080 100%)' }}
       >
-        {/* Decorative circles */}
         <div
           className="absolute -top-24 -right-24 w-72 h-72 rounded-full opacity-10"
           style={{ background: 'radial-gradient(circle, #ffffff 0%, transparent 70%)' }}
@@ -94,7 +146,6 @@ const Login = () => {
           style={{ background: 'radial-gradient(circle, #ffffff 0%, transparent 70%)' }}
         />
 
-        {/* Logo */}
         <div className="relative z-10 flex items-center gap-2.5">
           <div className="w-9 h-9 rounded-xl bg-white/15 flex items-center justify-center">
             <GraduationCap size={20} className="text-white" />
@@ -102,7 +153,6 @@ const Login = () => {
           <span className="font-manrope font-bold text-white text-lg tracking-tight">ScholarFlow</span>
         </div>
 
-        {/* Middle content */}
         <div className="relative z-10 space-y-6">
           <div>
             <div
@@ -118,16 +168,13 @@ const Login = () => {
               <span style={{ color: '#8df2fc' }}>opportunity.</span>
             </h1>
           </div>
-
           <p className="text-white/60 text-sm leading-relaxed max-w-xs">
             A unified platform for placement drives, student tracking, and campus recruitment — built for modern colleges.
           </p>
-
-          {/* Stats row */}
           <div className="flex gap-6">
             {[
               { value: '4+', label: 'Roles' },
-              { value: '100%', label: 'Role-Based' },
+              { value: '100%', label: 'Role-based' },
               { value: '∞', label: 'Scalable' },
             ].map(({ value, label }) => (
               <div key={label}>
@@ -138,17 +185,13 @@ const Login = () => {
           </div>
         </div>
 
-        {/* Bottom attribution */}
         <p className="relative z-10 text-white/30 text-xs">
           © {new Date().getFullYear()} ScholarFlow · All rights reserved
         </p>
       </div>
 
-      {/* ── Right login panel ── */}
       <div className="flex-1 flex items-center justify-center p-6 bg-gray-50/60">
         <div className="w-full max-w-[400px]">
-
-          {/* Mobile logo */}
           <div className="flex lg:hidden items-center gap-2 mb-8 justify-center">
             <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: '#003466' }}>
               <GraduationCap size={16} className="text-white" />
@@ -156,29 +199,82 @@ const Login = () => {
             <span className="font-manrope font-bold text-gray-900 text-base">ScholarFlow</span>
           </div>
 
-          {/* Heading */}
-          <div className="mb-8">
-            <h2 className="font-manrope font-bold text-2xl text-gray-900 leading-tight">
-              Welcome back
-            </h2>
-            <p className="text-gray-500 text-sm mt-1">Choose your role to continue</p>
-          </div>
+          {step === 'choose' ? (
+            <>
+              <div className="mb-8">
+                <h2 className="font-manrope font-bold text-2xl text-gray-900 leading-tight">Welcome back</h2>
+                <p className="text-gray-500 text-sm mt-1">Choose your role to continue</p>
+              </div>
+              <div className="space-y-2.5">
+                {roles.map((r) => (
+                  <RoleCard
+                    key={r.role}
+                    label={r.label}
+                    description={r.description}
+                    icon={r.icon}
+                    accent={r.accent}
+                    lightBg={r.lightBg}
+                    onClick={() => handleChooseRole(r.role)}
+                  />
+                ))}
+              </div>
+              <p className="text-center text-xs text-gray-400 mt-8">
+                You will sign in with your email and password. Your account must match the role you pick.
+              </p>
+            </>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={goBackToRoles}
+                className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 mb-6 -mt-1"
+              >
+                <ArrowLeft size={16} />
+                Change role
+              </button>
+              <div className="mb-8">
+                <h2 className="font-manrope font-bold text-2xl text-gray-900 leading-tight">
+                  Sign in as {selectedMeta?.label}
+                </h2>
+                <p className="text-gray-500 text-sm mt-1">Enter the email and password for this role.</p>
+              </div>
 
-          {/* Role cards */}
-          <div className="space-y-2.5">
-            {roles.map((r) => (
-              <RoleCard
-                key={r.role}
-                {...r}
-                onClick={() => login(r.role)}
-              />
-            ))}
-          </div>
-
-          {/* Footer note */}
-          <p className="text-center text-xs text-gray-400 mt-8">
-            Demo mode — no credentials required
-          </p>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                  <input
+                    type="email"
+                    autoComplete="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                    placeholder="you@institute.edu"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                  <input
+                    type="password"
+                    autoComplete="current-password"
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                    placeholder="••••••••"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="w-full btn-primary flex items-center justify-center gap-2 py-2.5 disabled:opacity-60"
+                >
+                  {submitting ? <Loader2 size={18} className="animate-spin" /> : null}
+                  {submitting ? 'Signing in…' : 'Sign in'}
+                </button>
+              </form>
+            </>
+          )}
         </div>
       </div>
     </div>

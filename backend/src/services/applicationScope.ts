@@ -1,6 +1,7 @@
 import type { Request } from "express";
 import mongoose from "mongoose";
 import { User } from "../models/User.js";
+import { escapeRegex } from "../utils/escapeRegex.js";
 
 /** Same visibility rules as list applications (for exports and JSON list). */
 export async function applicationFilterForRole(
@@ -17,14 +18,11 @@ export async function applicationFilterForRole(
   if (role === "coordinator") {
     const dept = req.user!.department?.trim();
     if (!dept) {
-      return { student: { $in: [] } };
+      return { ...filter, student: { $in: [] } };
     }
     const students = await User.find({
       role: "student",
-      department: new RegExp(
-        `^${dept.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`,
-        "i"
-      ),
+      department: new RegExp(`^${escapeRegex(dept)}$`, "i"),
     }).select("_id");
     const ids = students.map((s) => s._id);
     filter.student = { $in: ids };

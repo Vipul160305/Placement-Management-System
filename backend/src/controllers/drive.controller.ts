@@ -8,6 +8,7 @@ import { AppError } from "../utils/AppError.js";
 import { recordAudit } from "../services/auditService.js";
 import { evaluateEligibility } from "../services/eligibilityService.js";
 import type { ISectionAssignment } from "../models/Drive.js";
+import { escapeRegex } from "../utils/escapeRegex.js";
 
 function serializeDrive(d: InstanceType<typeof Drive>) {
   return {
@@ -46,13 +47,16 @@ export async function listDrives(req: Request, res: Response): Promise<void> {
       sendSuccess(res, 200, { drives: [] });
       return;
     }
-    query = {
-      ...query,
-      "sectionAssignments.department": new RegExp(
-        `^${dept.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`,
-        "i"
-      ),
+    const deptRe = new RegExp(`^${escapeRegex(dept)}$`, "i");
+    const coordClause: Record<string, unknown> = {
+      $or: [
+        { sectionAssignments: { $size: 0 } },
+        { "sectionAssignments.department": deptRe },
+      ],
     };
+    const keys = Object.keys(query);
+    query =
+      keys.length === 0 ? coordClause : { $and: [query, coordClause] };
   }
 
   const drives = await Drive.find(query)
@@ -310,9 +314,14 @@ export async function putAssignments(req: Request, res: Response): Promise<void>
         "FORBIDDEN"
       );
     }
+    const others = drive.sectionAssignments.filter(
+      (a) => a.department.trim().toLowerCase() !== myDept
+    );
+    drive.sectionAssignments = [...others, ...normalized];
+  } else {
+    drive.sectionAssignments = normalized;
   }
 
-  drive.sectionAssignments = normalized;
   await drive.save();
 
   await recordAudit({

@@ -1,123 +1,167 @@
-import { useState } from 'react';
-import { Plus, X, Building2, Users, CheckCircle } from 'lucide-react';
-import { mockSections, mockCompanies } from '../../data/mockData';
-import Badge from '../../components/ui/Badge';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { Building2, Loader2 } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../context/ToastContext';
+import { listDrives, putDriveAssignments } from '../../services/api';
+
+const SECTION_OPTIONS = ['A', 'B', 'C', 'D'];
+
+function sectionsForDept(drive, deptNorm) {
+  if (!deptNorm) return [];
+  const row = (drive.sectionAssignments || []).find(
+    (a) => (a.department || '').trim().toLowerCase() === deptNorm
+  );
+  return row?.sections || [];
+}
 
 const SectionAssignment = () => {
-  const [sections, setSections] = useState(mockSections);
-  const [companies] = useState(mockCompanies);
+  const { user } = useAuth();
+  const { addToast } = useToast();
+  const [drives, setDrives] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [draft, setDraft] = useState({});
+  const [savingId, setSavingId] = useState(null);
 
-  const getCompany = (id) => companies.find(c => c.id === id);
+  const dept = (user?.department || '').trim();
+  const deptNorm = dept.toLowerCase();
 
-  const assignCompany = (sectionId, companyId) => {
-    setSections(prev => prev.map(s =>
-      s.id === sectionId && !s.companies.includes(companyId)
-        ? { ...s, companies: [...s.companies, companyId] }
-        : s
-    ));
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const { drives: rows } = await listDrives();
+      setDrives(rows || []);
+      const next = {};
+      (rows || []).forEach((d) => {
+        next[d.id] = sectionsForDept(d, deptNorm);
+      });
+      setDraft(next);
+    } catch (e) {
+      addToast(e.message || 'Failed to load drives', 'error');
+    } finally {
+      setLoading(false);
+    }
+  }, [addToast, deptNorm]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const toggleSection = (driveId, letter) => {
+    setDraft((prev) => {
+      const cur = [...(prev[driveId] || [])];
+      const i = cur.findIndex((s) => s.toLowerCase() === letter.toLowerCase());
+      if (i >= 0) cur.splice(i, 1);
+      else cur.push(letter);
+      return { ...prev, [driveId]: cur };
+    });
   };
 
-  const removeCompany = (sectionId, companyId) => {
-    setSections(prev => prev.map(s =>
-      s.id === sectionId ? { ...s, companies: s.companies.filter(c => c !== companyId) } : s
-    ));
+  const save = async (driveId) => {
+    if (!dept) {
+      addToast('Your account has no department set.', 'error');
+      return;
+    }
+    setSavingId(driveId);
+    try {
+      await putDriveAssignments(driveId, [{ department: dept, sections: draft[driveId] || [] }]);
+      addToast('Section assignment saved', 'success');
+      load();
+    } catch (e) {
+      addToast(e.message || 'Save failed', 'error');
+    } finally {
+      setSavingId(null);
+    }
   };
+
+  const stats = useMemo(() => {
+    const assigned = drives.filter((d) => sectionsForDept(d, deptNorm).length > 0).length;
+    return { drives: drives.length, assigned };
+  }, [drives, deptNorm]);
+
+  if (!dept) {
+    return (
+      <div className="card text-center py-12 text-amber-700">
+        Your profile is missing a department. Ask an admin to set your department so you can assign sections.
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-manrope font-bold text-gray-900">Section-wise Company Assignment</h1>
-        <p className="text-gray-500 mt-1">Assign recruiting companies to specific student sections.</p>
+        <h1 className="text-2xl font-manrope font-bold text-gray-900">Section assignment</h1>
+        <p className="text-gray-500 mt-1">
+          For drives in <span className="font-semibold text-gray-800">{dept}</span>, choose which sections may apply.
+        </p>
       </div>
 
-      {/* Stats Row */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 gap-4 max-w-lg">
         <div className="card !p-4 text-center">
-          <div className="text-2xl font-bold text-gray-900">{sections.length}</div>
-          <div className="text-sm text-gray-500 mt-0.5">Sections</div>
+          <div className="text-2xl font-bold text-gray-900">{stats.drives}</div>
+          <div className="text-sm text-gray-500 mt-0.5">Visible drives</div>
         </div>
         <div className="card !p-4 text-center">
-          <div className="text-2xl font-bold text-gray-900">{companies.length}</div>
-          <div className="text-sm text-gray-500 mt-0.5">Companies</div>
-        </div>
-        <div className="card !p-4 text-center">
-          <div className="text-2xl font-bold text-gray-900">{sections.reduce((acc, s) => acc + s.companies.length, 0)}</div>
-          <div className="text-sm text-gray-500 mt-0.5">Total Assignments</div>
+          <div className="text-2xl font-bold text-gray-900">{stats.assigned}</div>
+          <div className="text-sm text-gray-500 mt-0.5">With sections set</div>
         </div>
       </div>
 
-      {/* Section cards */}
-      <div className="space-y-4">
-        {sections.map(section => {
-          const unassigned = companies.filter(c => !section.companies.includes(c.id));
-          return (
-            <div key={section.id} className="card">
-              {/* Section Header */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5 pb-4 border-b border-gray-100">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-bold">
-                    {section.id.split('-')[1]}
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-gray-900">{section.label}</h3>
-                    <div className="flex items-center gap-3 mt-0.5">
-                      <span className="text-xs text-gray-400 flex items-center gap-1"><Users size={11} />{section.studentCount} students</span>
-                      <span className="text-xs text-gray-400">Coord: {section.coordinator}</span>
+      {loading ? (
+        <div className="card flex items-center justify-center gap-2 py-12 text-gray-500">
+          <Loader2 className="animate-spin" size={22} /> Loading drives…
+        </div>
+      ) : drives.length === 0 ? (
+        <div className="card text-center py-12 text-gray-400">No drives available for your department yet.</div>
+      ) : (
+        <div className="space-y-4">
+          {drives.map((drive) => {
+            const companyName =
+              typeof drive.company === 'object' && drive.company?.name ? drive.company.name : 'Company';
+            const selected = draft[drive.id] || [];
+            return (
+              <div key={drive.id} className="card">
+                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-4">
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                      <Building2 size={20} />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-gray-900">{drive.title || 'Untitled drive'}</h3>
+                      <p className="text-sm text-gray-500">{companyName}</p>
                     </div>
                   </div>
+                  <button
+                    type="button"
+                    disabled={savingId === drive.id}
+                    onClick={() => save(drive.id)}
+                    className="btn-primary text-sm px-4 py-2 whitespace-nowrap disabled:opacity-60"
+                  >
+                    {savingId === drive.id ? 'Saving…' : 'Save sections'}
+                  </button>
                 </div>
-                <div>
-                  {unassigned.length > 0 && (
-                    <div className="flex items-center gap-2">
-                      <select
-                        defaultValue=""
-                        onChange={e => { if (e.target.value) { assignCompany(section.id, Number(e.target.value)); e.target.value = ''; }}}
-                        className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                      >
-                        <option value="">+ Assign Company</option>
-                        {unassigned.map(c => <option key={c.id} value={c.id}>{c.name} (₹{c.package} LPA)</option>)}
-                      </select>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Assigned Companies */}
-              {section.companies.length === 0 ? (
-                <div className="text-center py-6 text-sm text-gray-400 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
-                  No companies assigned to this section yet.
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                  {section.companies.map(cId => {
-                    const company = getCompany(cId);
-                    if (!company) return null;
+                <p className="text-xs text-gray-500 mb-3">Sections for {dept}</p>
+                <div className="flex flex-wrap gap-2">
+                  {SECTION_OPTIONS.map((letter) => {
+                    const on = selected.some((s) => s.toLowerCase() === letter.toLowerCase());
                     return (
-                      <div key={cId} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-gray-100 group">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-lg bg-white border border-gray-200 flex items-center justify-center text-primary font-bold text-sm">
-                            {company.name[0]}
-                          </div>
-                          <div>
-                            <div className="text-sm font-semibold text-gray-900">{company.name}</div>
-                            <div className="text-xs text-gray-400">₹{company.package} LPA · Min {company.eligibility.minCGPA} CGPA</div>
-                          </div>
-                        </div>
-                        <button
-                          onClick={() => removeCompany(section.id, cId)}
-                          className="p-1 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-all"
-                        >
-                          <X size={14} />
-                        </button>
-                      </div>
+                      <button
+                        key={letter}
+                        type="button"
+                        onClick={() => toggleSection(drive.id, letter)}
+                        className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
+                          on ? 'bg-primary text-white border-primary' : 'bg-white text-gray-600 border-gray-300 hover:border-primary'
+                        }`}
+                      >
+                        {letter}
+                      </button>
                     );
                   })}
                 </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 };

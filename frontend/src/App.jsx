@@ -26,14 +26,28 @@ import DriveList from './pages/student/DriveList';
 import MyApplications from './pages/student/MyApplications';
 
 const ProtectedRoute = ({ children, allowedRoles }) => {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, loading } = useAuth();
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 text-primary font-medium">
+        Loading…
+      </div>
+    );
+  }
   if (!isAuthenticated) return <Navigate to="/login" replace />;
   if (allowedRoles && !allowedRoles.includes(user.role)) return <Navigate to="/" replace />;
   return children;
 };
 
 const DashboardRouter = () => {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 text-primary font-medium">
+        Loading…
+      </div>
+    );
+  }
   if (!user) return <Navigate to="/login" replace />;
   switch (user.role) {
     case 'admin':       return <Navigate to="/admin" replace />;
