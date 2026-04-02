@@ -1,8 +1,9 @@
-import { useState } from 'react';
-import { Search, Plus, Pencil, Trash2, Users } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { Search, Plus, Pencil, Trash2, Users, Upload } from 'lucide-react';
 import { mockUsers } from '../../data/mockData';
 import Modal from '../../components/ui/Modal';
 import Badge from '../../components/ui/Badge';
+import { useToast } from '../../context/ToastContext';
 
 const BLANK_USER = { name: '', email: '', role: 'student', department: 'CSE', section: 'A', cgpa: '', backlogs: 0, status: 'active' };
 
@@ -33,6 +34,8 @@ const UsersManagement = () => {
   const [editUser, setEditUser] = useState(null);
   const [form, setForm] = useState(BLANK_USER);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const fileInputRef = useRef(null);
+  const { addToast } = useToast();
 
   const filtered = users.filter(u => {
     const matchSearch = u.name.toLowerCase().includes(searchTerm.toLowerCase()) || u.email.toLowerCase().includes(searchTerm.toLowerCase());
@@ -47,13 +50,31 @@ const UsersManagement = () => {
     e.preventDefault();
     if (editUser) {
       setUsers(prev => prev.map(u => u.id === editUser.id ? { ...form, id: u.id, cgpa: form.cgpa === '' ? null : Number(form.cgpa) } : u));
+      addToast('User updated successfully', 'success');
     } else {
       setUsers(prev => [...prev, { ...form, id: Date.now(), cgpa: form.cgpa === '' ? null : Number(form.cgpa), backlogs: Number(form.backlogs) }]);
+      addToast('User created successfully', 'success');
     }
     setModalOpen(false);
   };
 
-  const handleDelete = (id) => { setUsers(prev => prev.filter(u => u.id !== id)); setDeleteConfirm(null); };
+  const handleDelete = (id) => { 
+    setUsers(prev => prev.filter(u => u.id !== id)); 
+    setDeleteConfirm(null); 
+    addToast('User deleted', 'info');
+  };
+
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Mock CSV parsing
+    setTimeout(() => {
+      const mockImportedCount = Math.floor(Math.random() * 50) + 10;
+      addToast(`Successfully imported ${mockImportedCount} users from ${file.name}`, 'success');
+      e.target.value = ''; // Reset input
+    }, 1000);
+  };
 
   const f = (field) => (e) => setForm(p => ({ ...p, [field]: e.target.value }));
 
@@ -65,13 +86,28 @@ const UsersManagement = () => {
           <h1 className="text-2xl font-manrope font-bold text-gray-900">User Management</h1>
           <p className="text-gray-500 mt-1">Manage all users — students, TPOs, and coordinators.</p>
         </div>
-        <button onClick={openAdd} className="btn-primary flex items-center gap-2 whitespace-nowrap">
-          <Plus size={18} /> Add User
-        </button>
+        <div className="flex items-center gap-3">
+          <input 
+            type="file" 
+            accept=".csv" 
+            className="hidden" 
+            ref={fileInputRef}
+            onChange={handleFileUpload}
+          />
+          <button 
+            onClick={() => fileInputRef.current?.click()} 
+            className="flex items-center gap-2 px-4 py-2 hover:bg-gray-100 text-gray-700 font-medium rounded-lg border border-gray-300 transition-colors whitespace-nowrap"
+          >
+            <Upload size={18} /> Import CSV
+          </button>
+          <button onClick={openAdd} className="btn-primary flex items-center gap-2 whitespace-nowrap">
+            <Plus size={18} /> Add User
+          </button>
+        </div>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {['student', 'tpo', 'coordinator', 'admin'].map(role => (
           <div key={role} className="card !p-4 text-center">
             <div className="text-2xl font-bold text-gray-900">{users.filter(u => u.role === role).length}</div>
@@ -90,7 +126,7 @@ const UsersManagement = () => {
             className="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
           />
         </div>
-        <select value={roleFilter} onChange={e => setRoleFilter(e.target.value)} className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary">
+        <select value={roleFilter} onChange={e => setRoleFilter(e.target.value)} className="w-full sm:w-auto border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary">
           <option value="all">All Roles</option>
           <option value="student">Students</option>
           <option value="tpo">TPO</option>
@@ -105,7 +141,7 @@ const UsersManagement = () => {
           <Users size={18} className="text-gray-400" />
           <span className="text-sm font-semibold text-gray-700">{filtered.length} Users</span>
         </div>
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto w-full">
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-gray-50 text-gray-600 text-xs uppercase tracking-wide">
@@ -123,13 +159,13 @@ const UsersManagement = () => {
                 <tr><td colSpan={7} className="py-12 text-center text-gray-400">No users found.</td></tr>
               ) : filtered.map(u => (
                 <tr key={u.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-4 py-3 font-medium text-gray-900">{u.name}</td>
-                  <td className="px-4 py-3 text-gray-500">{u.email}</td>
-                  <td className="px-4 py-3"><Badge variant={u.role}>{u.role}</Badge></td>
-                  <td className="px-4 py-3 text-gray-500">{u.department}{u.section !== '-' ? `-${u.section}` : ''}</td>
-                  <td className="px-4 py-3 text-gray-900 font-medium">{u.cgpa ?? '—'}</td>
-                  <td className="px-4 py-3"><Badge variant={u.status}>{u.status}</Badge></td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3 font-medium text-gray-900 whitespace-nowrap">{u.name}</td>
+                  <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{u.email}</td>
+                  <td className="px-4 py-3 whitespace-nowrap"><Badge variant={u.role}>{u.role}</Badge></td>
+                  <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{u.department}{u.section !== '-' ? `-${u.section}` : ''}</td>
+                  <td className="px-4 py-3 text-gray-900 font-medium whitespace-nowrap">{u.cgpa ?? '—'}</td>
+                  <td className="px-4 py-3 whitespace-nowrap"><Badge variant={u.status}>{u.status}</Badge></td>
+                  <td className="px-4 py-3 whitespace-nowrap">
                     <div className="flex items-center gap-2 justify-end">
                       <button onClick={() => openEdit(u)} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-primary transition-colors" title="Edit">
                         <Pencil size={15} />
@@ -149,11 +185,11 @@ const UsersManagement = () => {
       {/* Add/Edit Modal */}
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editUser ? 'Edit User' : 'Add New User'} size="lg">
         <form onSubmit={handleSave} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <InputField label="Full Name" value={form.name} onChange={f('name')} required placeholder="e.g. Arjun Sharma" />
             <InputField label="Email" type="email" value={form.email} onChange={f('email')} required placeholder="user@institute.edu" />
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <SelectField label="Role" value={form.role} onChange={f('role')} options={[
               { value: 'student', label: 'Student' }, { value: 'tpo', label: 'TPO' },
               { value: 'coordinator', label: 'Coordinator' }, { value: 'admin', label: 'Admin' }
@@ -162,7 +198,7 @@ const UsersManagement = () => {
               { value: 'active', label: 'Active' }, { value: 'inactive', label: 'Inactive' }
             ]} />
           </div>
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <SelectField label="Department" value={form.department} onChange={f('department')} options={[
               'CSE','ECE','IT','MECH','CIVIL'].map(d => ({ value: d, label: d }))} />
             <SelectField label="Section" value={form.section} onChange={f('section')} options={[
@@ -170,9 +206,9 @@ const UsersManagement = () => {
             <InputField label="CGPA" type="number" value={form.cgpa} onChange={f('cgpa')} placeholder="e.g. 8.5" />
           </div>
           <InputField label="Active Backlogs" type="number" value={form.backlogs} onChange={f('backlogs')} placeholder="0" />
-          <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={() => setModalOpen(false)} className="px-4 py-2 text-sm font-medium text-gray-700 rounded-lg border border-gray-300 hover:bg-gray-50">Cancel</button>
-            <button type="submit" className="btn-primary">{editUser ? 'Save Changes' : 'Create User'}</button>
+          <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 pt-4 sm:pt-2">
+            <button type="button" onClick={() => setModalOpen(false)} className="px-4 py-2 text-sm font-medium text-gray-700 rounded-lg border border-gray-300 hover:bg-gray-50 w-full sm:w-auto">Cancel</button>
+            <button type="submit" className="btn-primary w-full sm:w-auto">{editUser ? 'Save Changes' : 'Create User'}</button>
           </div>
         </form>
       </Modal>
@@ -180,9 +216,9 @@ const UsersManagement = () => {
       {/* Delete Confirm Modal */}
       <Modal open={!!deleteConfirm} onClose={() => setDeleteConfirm(null)} title="Delete User" size="sm">
         <p className="text-gray-600 text-sm mb-6">Are you sure you want to delete this user? This action cannot be undone.</p>
-        <div className="flex justify-end gap-3">
-          <button onClick={() => setDeleteConfirm(null)} className="px-4 py-2 text-sm font-medium text-gray-700 rounded-lg border border-gray-300 hover:bg-gray-50">Cancel</button>
-          <button onClick={() => handleDelete(deleteConfirm)} className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700">Delete</button>
+        <div className="flex flex-col-reverse sm:flex-row justify-end gap-3">
+          <button onClick={() => setDeleteConfirm(null)} className="px-4 py-2 text-sm font-medium text-gray-700 rounded-lg border border-gray-300 hover:bg-gray-50 w-full sm:w-auto">Cancel</button>
+          <button onClick={() => handleDelete(deleteConfirm)} className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 w-full sm:w-auto">Delete</button>
         </div>
       </Modal>
     </div>

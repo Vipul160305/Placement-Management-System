@@ -1,18 +1,34 @@
 import React from 'react';
-import { Briefcase, TrendingUp, Users } from 'lucide-react';
+import { Briefcase, TrendingUp, Users, Download } from 'lucide-react';
+import { useToast } from '../../context/ToastContext';
+import { useNavigate } from 'react-router-dom';
 
 const TPODashboard = () => {
+  const { addToast } = useToast();
+  const navigate = useNavigate();
+
+  const handleExport = () => {
+    addToast('Generating placement statistics report...', 'info');
+    setTimeout(() => {
+      addToast('Report downloaded successfully as CSV', 'success');
+    }, 1500);
+  };
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-manrope font-bold text-gray-900">Placement Dashboard</h1>
           <p className="text-gray-500 mt-1">Overview of drives and placement stats.</p>
         </div>
-        <button className="btn-primary flex items-center gap-2">
-          <Briefcase size={18} />
-          Create New Drive
-        </button>
+        <div className="flex items-center gap-3">
+          <button onClick={handleExport} className="flex items-center gap-2 px-4 py-2 hover:bg-gray-100 text-gray-700 font-medium rounded-lg border border-gray-300 transition-colors whitespace-nowrap">
+            <Download size={18} /> Export Stats
+          </button>
+          <button onClick={() => navigate('/tpo/create')} className="btn-primary flex items-center gap-2 whitespace-nowrap">
+            <Briefcase size={18} /> Create New Drive
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

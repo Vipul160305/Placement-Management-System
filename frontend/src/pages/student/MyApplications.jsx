@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { CheckCircle2, Circle, Clock, Trophy, XCircle, Briefcase } from 'lucide-react';
+import { CheckCircle2, Circle, Clock, Trophy, XCircle, Briefcase, Download } from 'lucide-react';
 import { mockApplications } from '../../data/mockData';
 import Badge from '../../components/ui/Badge';
+import { useToast } from '../../context/ToastContext';
 
 const STATUS_FLOW = ['applied', 'shortlisted', 'offered'];
 
@@ -49,6 +50,7 @@ const StepTracker = ({ currentStatus }) => {
 
 const MyApplications = () => {
   const [applications] = useState(mockApplications);
+  const { addToast } = useToast();
 
   const counts = {
     total: applications.length,
@@ -57,11 +59,23 @@ const MyApplications = () => {
     offered: applications.filter(a => a.status === 'offered').length,
   };
 
+  const handleExport = () => {
+    addToast('Generating your applications report...', 'info');
+    setTimeout(() => {
+      addToast('Applications exported successfully', 'success');
+    }, 1500);
+  };
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-manrope font-bold text-gray-900">My Applications</h1>
-        <p className="text-gray-500 mt-1">Track the status of all your placement applications.</p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-manrope font-bold text-gray-900">My Applications</h1>
+          <p className="text-gray-500 mt-1">Track the status of all your placement applications.</p>
+        </div>
+        <button onClick={handleExport} className="flex items-center gap-2 px-4 py-2 hover:bg-gray-100 text-gray-700 font-medium rounded-lg border border-gray-300 transition-colors whitespace-nowrap">
+          <Download size={18} /> Export List
+        </button>
       </div>
 
       {/* Summary Stats */}

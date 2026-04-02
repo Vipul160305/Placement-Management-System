@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { ToastProvider } from './context/ToastContext';
 import Login from './pages/Login';
 import DashboardLayout from './components/Layout/DashboardLayout';
 
@@ -15,6 +16,7 @@ import UsersManagement from './pages/admin/UsersManagement';
 // TPO Pages
 import CompaniesPage from './pages/tpo/CompaniesPage';
 import DrivesPage from './pages/tpo/DrivesPage';
+import Analytics from './pages/tpo/Analytics';
 
 // Coordinator Pages
 import SectionAssignment from './pages/coordinator/SectionAssignment';
@@ -56,9 +58,10 @@ const AppRoutes = () => (
         <Route path="/admin/users" element={<PR roles={['admin']}><UsersManagement /></PR>} />
 
         {/* TPO */}
-        <Route path="/tpo"         element={<PR roles={['tpo']}><TPODashboard /></PR>} />
-        <Route path="/tpo/create"  element={<PR roles={['tpo']}><DrivesPage /></PR>} />
-        <Route path="/tpo/stats"   element={<PR roles={['tpo']}><CompaniesPage /></PR>} />
+        <Route path="/tpo"           element={<PR roles={['tpo']}><TPODashboard /></PR>} />
+        <Route path="/tpo/create"    element={<PR roles={['tpo']}><DrivesPage /></PR>} />
+        <Route path="/tpo/companies" element={<PR roles={['tpo']}><CompaniesPage /></PR>} />
+        <Route path="/tpo/stats"     element={<PR roles={['tpo']}><Analytics /></PR>} />
 
         {/* Coordinator */}
         <Route path="/coordinator"          element={<PR roles={['coordinator']}><CoordinatorDashboard /></PR>} />
@@ -75,9 +78,11 @@ const AppRoutes = () => (
 
 function App() {
   return (
-    <AuthProvider>
-      <AppRoutes />
-    </AuthProvider>
+    <ToastProvider>
+      <AuthProvider>
+        <AppRoutes />
+      </AuthProvider>
+    </ToastProvider>
   );
 }
 
