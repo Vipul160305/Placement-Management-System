@@ -149,10 +149,14 @@ export async function deleteUser(req: Request, res: Response): Promise<void> {
   if (id === req.user?.id) {
     throw new AppError(400, "Cannot delete own account here", "VALIDATION_ERROR");
   }
-  const user = await User.findByIdAndDelete(id);
+  const user = await User.findById(id);
   if (!user) {
     throw new AppError(404, "User not found", "NOT_FOUND");
   }
+  if (user.role === "admin") {
+    throw new AppError(403, "Admin users cannot be deleted", "FORBIDDEN");
+  }
+  await User.findByIdAndDelete(id);
 
   await recordAudit({
     actorId: req.user!.id,

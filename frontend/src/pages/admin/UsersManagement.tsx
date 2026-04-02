@@ -343,9 +343,10 @@ const UsersManagement = () => {
                         </button>
                         <button
                           type="button"
-                          onClick={() => setDeleteConfirm(u.id)}
-                          className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors"
-                          title="Delete"
+                          onClick={() => u.role !== "admin" && setDeleteConfirm(u.id)}
+                          disabled={u.role === "admin"}
+                          className="p-1.5 rounded-lg text-gray-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed hover:bg-red-50 hover:text-red-500 disabled:hover:bg-transparent disabled:hover:text-gray-400"
+                          title={u.role === "admin" ? "Admin users cannot be deleted" : "Delete"}
                         >
                           <Trash2 size={15} />
                         </button>

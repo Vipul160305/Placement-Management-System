@@ -245,6 +245,12 @@ const Login = () => {
               <p className="text-center text-xs text-gray-400 mt-8">
                 You will sign in with your email and password. Your account must match the role you pick.
               </p>
+              {import.meta.env.DEV && (
+                <p className="text-center text-xs text-gray-500 mt-3 max-w-sm mx-auto">
+                  No accounts yet? Choose <span className="font-medium">Administrator</span>, then follow the setup
+                  note on the next step (seed script creates the first admin).
+                </p>
+              )}
             </>
           ) : (
             <>
@@ -297,6 +303,16 @@ const Login = () => {
                   {submitting ? "Signing in…" : "Sign in"}
                 </button>
               </form>
+              {import.meta.env.DEV && selectedRole === "admin" && (
+                <p className="mt-4 text-xs text-gray-500 leading-relaxed border border-dashed border-gray-200 rounded-lg p-3 bg-gray-50/80">
+                  <span className="font-medium text-gray-700">First-time setup:</span> from the{" "}
+                  <code className="text-[11px] bg-gray-100 px-1 rounded">backend</code> folder run{" "}
+                  <code className="text-[11px] bg-gray-100 px-1 rounded">npm run seed:admin</code> once (MongoDB
+                  must be running). Then sign in as{" "}
+                  <code className="text-[11px] bg-gray-100 px-1 rounded">admin@example.com</code> /{" "}
+                  <code className="text-[11px] bg-gray-100 px-1 rounded">Admin@123456</code>.
+                </p>
+              )}
             </>
           )}
         </div>
