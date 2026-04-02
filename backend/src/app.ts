@@ -8,6 +8,8 @@ import { userRouter } from "./routes/user.routes.js";
 import { companyRouter } from "./routes/company.routes.js";
 import { driveRouter } from "./routes/drive.routes.js";
 import { applicationRouter } from "./routes/applicationRoutes.js";
+import { importRouter } from "./routes/import.routes.js";
+import { exportRouter } from "./routes/export.routes.js";
 
 export function createApp() {
   const app = express();
@@ -29,6 +31,8 @@ export function createApp() {
   app.use("/api/companies", companyRouter);
   app.use("/api/drives", driveRouter);
   app.use("/api/applications", applicationRouter);
+  app.use("/api/imports", importRouter);
+  app.use("/api/exports", exportRouter);
 
   app.use((_req, res) => {
     res.status(404).json({

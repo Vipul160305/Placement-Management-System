@@ -190,3 +190,36 @@ Content-Type: application/json
 {
   "status": "shortlisted"
 }
+
+### Phase 3 — import students CSV (admin; field name must be `file`)
+# REST Client sends multipart relative to this .http file location (backend/http/).
+POST {{baseUrl}}/api/imports/students
+Authorization: Bearer {{accessToken}}
+Content-Type: multipart/form-data; boundary=----split
+
+------split
+Content-Disposition: form-data; name="file"; filename="students.csv"
+Content-Type: text/csv
+
+< ./samples/students.csv
+------split--
+
+### Phase 3 — import companies CSV (admin / TPO)
+POST {{baseUrl}}/api/imports/companies
+Authorization: Bearer {{accessToken}}
+Content-Type: multipart/form-data; boundary=----split2
+
+------split2
+Content-Disposition: form-data; name="file"; filename="companies.csv"
+Content-Type: text/csv
+
+< ./samples/companies.csv
+------split2--
+
+### Phase 3 — export applications (csv default; add ?format=xlsx for Excel)
+GET {{baseUrl}}/api/exports/applications?format=csv&driveId=
+Authorization: Bearer {{accessToken}}
+
+### Phase 3 — export placed students (status = offered)
+GET {{baseUrl}}/api/exports/placed-students?format=csv
+Authorization: Bearer {{accessToken}}

@@ -1,5 +1,7 @@
 import { Router } from "express";
 import { asyncHandler } from "../middleware/asyncHandler.js";
+import { validateRequest } from "../middleware/validateRequest.js";
+import { createCompanyRules } from "../validators/company.validators.js";
 import { authenticate, authorize } from "../middleware/auth.js";
 import * as company from "../controllers/company.controller.js";
 
@@ -12,6 +14,8 @@ companyRouter.post(
   "/",
   authenticate,
   authorize("admin", "tpo"),
+  createCompanyRules,
+  validateRequest,
   asyncHandler(company.createCompany)
 );
 companyRouter.patch(

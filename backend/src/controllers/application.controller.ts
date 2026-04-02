@@ -6,6 +6,7 @@ import { User } from "../models/User.js";
 import { sendSuccess } from "../utils/apiResponse.js";
 import { AppError } from "../utils/AppError.js";
 import { recordAudit } from "../services/auditService.js";
+import { applicationFilterForRole } from "../services/applicationScope.js";
 import type { ApplicationStatus } from "../models/Application.js";
 
 const TERMINAL: ApplicationStatus[] = ["offered", "rejected", "withdrawn"];
@@ -41,33 +42,12 @@ export async function listMyApplications(
 
 export async function listApplications(req: Request, res: Response): Promise<void> {
   const role = req.user!.role;
-  const { driveId } = req.query as { driveId?: string };
-
-  let filter: Record<string, unknown> = {};
-  if (driveId && mongoose.Types.ObjectId.isValid(driveId)) {
-    filter.drive = driveId;
+  if (role === "coordinator" && !req.user!.department?.trim()) {
+    sendSuccess(res, 200, { applications: [] });
+    return;
   }
 
-  if (role === "coordinator") {
-    const dept = req.user!.department?.trim();
-    if (!dept) {
-      sendSuccess(res, 200, { applications: [] });
-      return;
-    }
-    const students = await User.find({
-      role: "student",
-      department: new RegExp(
-        `^${dept.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`,
-        "i"
-      ),
-    }).select("_id");
-    const ids = students.map((s) => s._id);
-    filter.student = { $in: ids };
-  }
-
-  if (role === "student") {
-    filter.student = req.user!.id;
-  }
+  const filter = await applicationFilterForRole(req);
 
   const apps = await Application.find(filter)
     .populate("student", "name email department section branch cgpa backlogCount")

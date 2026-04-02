@@ -1,4 +1,5 @@
 import type { NextFunction, Request, Response } from "express";
+import { MulterError } from "multer";
 import { AppError } from "../utils/AppError.js";
 import { sendError } from "../utils/apiResponse.js";
 
@@ -17,6 +18,15 @@ export function errorHandler(
   res: Response,
   _next: NextFunction
 ): void {
+  if (err instanceof MulterError) {
+    if (err.code === "LIMIT_FILE_SIZE") {
+      sendError(res, 400, "VALIDATION_ERROR", "File too large (max 5 MB)");
+      return;
+    }
+    sendError(res, 400, "VALIDATION_ERROR", err.message);
+    return;
+  }
+
   if (err instanceof AppError) {
     sendError(
       res,
