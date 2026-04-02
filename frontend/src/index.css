@@ -1,0 +1,40 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #f8f9fa;
+  --surface-lowest: #ffffff;
+  --surface-low: #f3f4f5;
+  --surface-high: #e7e8e9;
+  --surface-highest: #e1e3e4;
+  --on-surface: #191c1d;
+  --primary: #003466;
+  --primary-container: #1a4b84;
+  --secondary: #006970;
+  --secondary-container: #8df2fc;
+  
+  --font-display: 'Manrope', sans-serif;
+  --font-body: 'Inter', sans-serif;
+}
+
+@layer base {
+  body {
+    @apply bg-surface text-on-surface font-inter antialiased;
+    font-size: 16px;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-manrope font-bold tracking-tight text-on-surface;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-primary text-white px-4 py-2 rounded-lg font-medium hover:bg-primary-container transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2;
+  }
+  
+  .card {
+    @apply bg-white border border-gray-200 rounded-xl shadow-sm p-6;
+  }
+}
