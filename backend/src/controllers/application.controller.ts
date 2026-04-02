@@ -34,7 +34,11 @@ export async function listMyApplications(
     throw new AppError(403, "Students only", "FORBIDDEN");
   }
   const apps = await Application.find({ student: req.user!.id })
-    .populate("drive", "title status company scheduledAt")
+    .populate({
+      path: "drive",
+      select: "title status company scheduledAt package jobRole",
+      populate: { path: "company", select: "name" },
+    })
     .sort({ updatedAt: -1 });
 
   sendSuccess(res, 200, { applications: apps });

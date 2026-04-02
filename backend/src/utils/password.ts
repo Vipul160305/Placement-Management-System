@@ -8,8 +8,11 @@ export async function hashPassword(plain: string): Promise<string> {
 
 export async function verifyPassword(
   plain: string,
-  hash: string
+  hash: string | undefined | null
 ): Promise<boolean> {
+  if (typeof plain !== "string" || !hash) {
+    return false;
+  }
   return bcrypt.compare(plain, hash);
 }
 
@@ -19,7 +22,10 @@ export async function hashToken(token: string): Promise<string> {
 
 export async function verifyTokenHash(
   token: string,
-  hash: string
+  hash: string | undefined | null
 ): Promise<boolean> {
+  if (typeof token !== "string" || !hash) {
+    return false;
+  }
   return bcrypt.compare(token, hash);
 }
