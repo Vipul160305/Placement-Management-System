@@ -1,0 +1,192 @@
+# Placement API — manual tests (VS Code: install "REST Client" by Huachao Mao, then click "Send Request")
+# 1) Start API: npm run dev
+# 2) Run seed once: npm run seed:admin  (default admin@example.com / Admin@123456)
+# 3) Login below, copy accessToken into @accessToken (and refreshToken into @refreshToken)
+
+@baseUrl = http://localhost:5000
+@accessToken = paste_access_token_here
+@refreshToken = paste_refresh_token_here
+
+### Health (no auth)
+GET {{baseUrl}}/health
+
+### Auth — register student (public)
+POST {{baseUrl}}/api/auth/register
+Content-Type: application/json
+
+{
+  "name": "Test Student",
+  "email": "student1@test.com",
+  "password": "Student@123",
+  "department": "CSE",
+  "section": "A",
+  "branch": "CSE",
+  "cgpa": 8.5,
+  "backlogCount": 0
+}
+
+### Auth — login (use admin from seed or any user)
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@example.com",
+  "password": "Admin@123456"
+}
+
+### Auth — refresh
+POST {{baseUrl}}/api/auth/refresh
+Content-Type: application/json
+
+{
+  "refreshToken": "{{refreshToken}}"
+}
+
+### Auth — logout (needs Bearer)
+POST {{baseUrl}}/api/auth/logout
+Authorization: Bearer {{accessToken}}
+
+### Users — me
+GET {{baseUrl}}/api/users/me
+Authorization: Bearer {{accessToken}}
+
+### Users — list (admin only)
+GET {{baseUrl}}/api/users
+Authorization: Bearer {{accessToken}}
+
+### Users — create TPO (admin only) — change email each run or delete user in DB
+POST {{baseUrl}}/api/users
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "name": "TPO User",
+  "email": "tpo1@test.com",
+  "password": "Tpo@123456",
+  "role": "tpo"
+}
+
+### Users — create coordinator (admin)
+POST {{baseUrl}}/api/users
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "name": "Coord CSE",
+  "email": "coord1@test.com",
+  "password": "Coord@123456",
+  "role": "coordinator",
+  "department": "CSE"
+}
+
+### Users — patch user (admin) — replace USER_ID
+PATCH {{baseUrl}}/api/users/USER_ID
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "name": "Updated Name"
+}
+
+### Companies — list
+GET {{baseUrl}}/api/companies
+Authorization: Bearer {{accessToken}}
+
+### Companies — create (admin / tpo) — login as tpo for this
+POST {{baseUrl}}/api/companies
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "name": "Acme Corp",
+  "website": "https://acme.example",
+  "contactEmail": "hr@acme.example",
+  "contactPhone": "+91-0000000000"
+}
+
+### Companies — get by id — replace COMPANY_ID
+GET {{baseUrl}}/api/companies/COMPANY_ID
+Authorization: Bearer {{accessToken}}
+
+### Companies — update — replace COMPANY_ID
+PATCH {{baseUrl}}/api/companies/COMPANY_ID
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "name": "Acme Corp Updated"
+}
+
+### Drives — create — replace COMPANY_ID; use tpo or admin token
+POST {{baseUrl}}/api/drives
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "company": "COMPANY_ID",
+  "title": "Campus Drive 2026",
+  "description": "Full-time roles",
+  "minCgpa": 7,
+  "maxBacklogs": 0,
+  "allowedBranches": ["CSE"],
+  "jobRole": "SDE",
+  "package": "12 LPA",
+  "status": "open"
+}
+
+### Drives — list
+GET {{baseUrl}}/api/drives
+Authorization: Bearer {{accessToken}}
+
+### Drives — put section assignments — replace DRIVE_ID; coordinator/tpo/admin
+PUT {{baseUrl}}/api/drives/DRIVE_ID/assignments
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "sectionAssignments": [
+    { "department": "CSE", "sections": ["A", "B"] }
+  ]
+}
+
+### Drives — get by id — replace DRIVE_ID
+GET {{baseUrl}}/api/drives/DRIVE_ID
+Authorization: Bearer {{accessToken}}
+
+### Drives — apply (student token only) — replace DRIVE_ID
+POST {{baseUrl}}/api/drives/DRIVE_ID/apply
+Authorization: Bearer {{accessToken}}
+
+### Drives — patch — replace DRIVE_ID
+PATCH {{baseUrl}}/api/drives/DRIVE_ID
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "status": "closed"
+}
+
+### Drives — delete (no applications on drive) — replace DRIVE_ID
+DELETE {{baseUrl}}/api/drives/DRIVE_ID
+Authorization: Bearer {{accessToken}}
+
+### Applications — my applications (student)
+GET {{baseUrl}}/api/applications/me
+Authorization: Bearer {{accessToken}}
+
+### Applications — list (role-scoped)
+GET {{baseUrl}}/api/applications
+Authorization: Bearer {{accessToken}}
+
+### Applications — list for one drive — optional query
+GET {{baseUrl}}/api/applications?driveId=DRIVE_ID
+Authorization: Bearer {{accessToken}}
+
+### Applications — update status — replace APPLICATION_ID; body depends on role
+PATCH {{baseUrl}}/api/applications/APPLICATION_ID/status
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "status": "shortlisted"
+}
