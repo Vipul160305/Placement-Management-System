@@ -1,5 +1,4 @@
-import React from 'react';
-import { ShieldCheck, UserPlus, Activity } from 'lucide-react';
+import { ShieldCheck, UserPlus, Activity } from "lucide-react";
 
 const AdminDashboard = () => {
   return (
@@ -15,17 +14,21 @@ const AdminDashboard = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="card">
           <div className="flex items-center gap-4 mb-4">
-            <div className="p-3 bg-primary/10 text-primary rounded-lg"><UserPlus size={24} /></div>
+            <div className="p-3 bg-primary/10 text-primary rounded-lg">
+              <UserPlus size={24} />
+            </div>
             <div>
               <div className="text-sm text-gray-500 font-medium">Total Users</div>
               <div className="text-2xl font-bold text-gray-900">2,450</div>
             </div>
           </div>
         </div>
-        
+
         <div className="card">
           <div className="flex items-center gap-4 mb-4">
-            <div className="p-3 bg-green-50 text-green-600 rounded-lg"><Activity size={24} /></div>
+            <div className="p-3 bg-green-50 text-green-600 rounded-lg">
+              <Activity size={24} />
+            </div>
             <div>
               <div className="text-sm text-gray-500 font-medium">System Status</div>
               <div className="text-2xl font-bold text-gray-900">Online</div>
@@ -35,7 +38,9 @@ const AdminDashboard = () => {
 
         <div className="card">
           <div className="flex items-center gap-4 mb-4">
-            <div className="p-3 bg-blue-50 text-blue-600 rounded-lg"><ShieldCheck size={24} /></div>
+            <div className="p-3 bg-blue-50 text-blue-600 rounded-lg">
+              <ShieldCheck size={24} />
+            </div>
             <div>
               <div className="text-sm text-gray-500 font-medium">Active Roles</div>
               <div className="text-2xl font-bold text-gray-900">4</div>
@@ -43,7 +48,7 @@ const AdminDashboard = () => {
           </div>
         </div>
       </div>
-      
+
       <div className="card">
         <h2 className="text-lg font-bold mb-4">Recent Activity Logs</h2>
         <div className="overflow-x-auto">

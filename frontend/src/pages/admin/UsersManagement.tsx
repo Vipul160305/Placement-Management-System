@@ -1,22 +1,50 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
-import { Search, Plus, Pencil, Trash2, Users, Upload } from 'lucide-react';
-import Modal from '../../components/ui/Modal';
-import Badge from '../../components/ui/Badge';
-import { useToast } from '../../context/ToastContext';
-import { listUsers, createUser, updateUser, deleteUser, importStudentsCsv } from '../../services/api';
+import { useState, useRef, useEffect, useCallback, type ChangeEvent, type FormEvent } from "react";
+import { Search, Plus, Pencil, Trash2, Users, Upload } from "lucide-react";
+import Modal from "../../components/ui/Modal";
+import Badge from "../../components/ui/Badge";
+import { useToast } from "../../context/ToastContext";
+import { listUsers, createUser, updateUser, deleteUser, importStudentsCsv } from "../../services/api";
+import type { Role } from "../../types/auth";
 
 const BLANK_USER = {
-  name: '',
-  email: '',
-  password: '',
-  role: 'student',
-  department: 'CSE',
-  section: 'A',
-  cgpa: '',
-  backlogs: '0',
+  name: "",
+  email: "",
+  password: "",
+  role: "student" as Role,
+  department: "CSE",
+  section: "A",
+  cgpa: "",
+  backlogs: "0",
 };
 
-const InputField = ({ label, type = 'text', value, onChange, required, placeholder }) => (
+type FormState = typeof BLANK_USER;
+
+interface ListUser {
+  id: string;
+  name: string;
+  email: string;
+  role: Role;
+  department?: string;
+  section?: string;
+  cgpa?: number | null;
+  backlogCount?: number;
+}
+
+const InputField = ({
+  label,
+  type = "text",
+  value,
+  onChange,
+  required,
+  placeholder,
+}: {
+  label: string;
+  type?: string;
+  value: string;
+  onChange: (e: ChangeEvent<HTMLInputElement>) => void;
+  required?: boolean;
+  placeholder?: string;
+}) => (
   <div>
     <label className="block text-sm font-medium text-gray-700 mb-1">
       {label}
@@ -33,7 +61,17 @@ const InputField = ({ label, type = 'text', value, onChange, required, placehold
   </div>
 );
 
-const SelectField = ({ label, value, onChange, options }) => (
+const SelectField = ({
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  label: string;
+  value: string;
+  onChange: (e: ChangeEvent<HTMLSelectElement>) => void;
+  options: { value: string; label: string }[];
+}) => (
   <div>
     <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
     <select
@@ -50,15 +88,15 @@ const SelectField = ({ label, value, onChange, options }) => (
   </div>
 );
 
-function buildPayload(form, editUser) {
-  const payload = {
+function buildPayload(form: FormState, editUser: ListUser | null) {
+  const payload: Record<string, unknown> = {
     name: form.name.trim(),
     email: form.email.trim(),
     role: form.role,
   };
-  if (form.department && form.department !== '-') payload.department = form.department;
-  if (form.section && form.section !== '-') payload.section = form.section;
-  const cg = form.cgpa === '' ? undefined : Number(form.cgpa);
+  if (form.department && form.department !== "-") payload.department = form.department;
+  if (form.section && form.section !== "-") payload.section = form.section;
+  const cg = form.cgpa === "" ? undefined : Number(form.cgpa);
   if (cg !== undefined && !Number.isNaN(cg)) payload.cgpa = cg;
   payload.backlogCount = Number(form.backlogs);
   if (Number.isNaN(payload.backlogCount)) payload.backlogCount = 0;
@@ -71,24 +109,25 @@ function buildPayload(form, editUser) {
 }
 
 const UsersManagement = () => {
-  const [users, setUsers] = useState([]);
+  const [users, setUsers] = useState<ListUser[]>([]);
   const [listLoading, setListLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [roleFilter, setRoleFilter] = useState('all');
+  const [searchTerm, setSearchTerm] = useState("");
+  const [roleFilter, setRoleFilter] = useState("all");
   const [modalOpen, setModalOpen] = useState(false);
-  const [editUser, setEditUser] = useState(null);
-  const [form, setForm] = useState(BLANK_USER);
-  const [deleteConfirm, setDeleteConfirm] = useState(null);
-  const fileInputRef = useRef(null);
+  const [editUser, setEditUser] = useState<ListUser | null>(null);
+  const [form, setForm] = useState<FormState>(BLANK_USER);
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { addToast } = useToast();
 
   const loadUsers = useCallback(async () => {
     setListLoading(true);
     try {
-      const { users: rows } = await listUsers();
+      const { users: rows } = (await listUsers()) as { users?: ListUser[] };
       setUsers(rows || []);
     } catch (e) {
-      addToast(e.message || 'Failed to load users', 'error');
+      const message = e instanceof Error ? e.message : "Failed to load users";
+      addToast(message, "error");
     } finally {
       setListLoading(false);
     }
@@ -102,7 +141,7 @@ const UsersManagement = () => {
     const matchSearch =
       u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       u.email.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchRole = roleFilter === 'all' || u.role === roleFilter;
+    const matchRole = roleFilter === "all" || u.role === roleFilter;
     return matchSearch && matchRole;
   });
 
@@ -112,73 +151,86 @@ const UsersManagement = () => {
     setModalOpen(true);
   };
 
-  const openEdit = (u) => {
+  const openEdit = (u: ListUser) => {
     setEditUser(u);
     setForm({
       ...BLANK_USER,
       name: u.name,
       email: u.email,
       role: u.role,
-      department: u.department || 'CSE',
-      section: u.section || 'A',
-      cgpa: u.cgpa != null ? String(u.cgpa) : '',
+      department: u.department || "CSE",
+      section: u.section || "A",
+      cgpa: u.cgpa != null ? String(u.cgpa) : "",
       backlogs: String(u.backlogCount ?? 0),
-      password: '',
+      password: "",
     });
     setModalOpen(true);
   };
 
-  const handleSave = async (e) => {
+  const handleSave = async (e: FormEvent) => {
     e.preventDefault();
     if (!editUser && !form.password?.trim()) {
-      addToast('Password is required for new users', 'error');
+      addToast("Password is required for new users", "error");
       return;
     }
     try {
       const payload = buildPayload(form, editUser);
       if (editUser) {
         await updateUser(editUser.id, payload);
-        addToast('User updated successfully', 'success');
+        addToast("User updated successfully", "success");
       } else {
         await createUser(payload);
-        addToast('User created successfully', 'success');
+        addToast("User created successfully", "success");
       }
       setModalOpen(false);
       loadUsers();
     } catch (err) {
-      addToast(err.message || 'Save failed', 'error');
+      const message = err instanceof Error ? err.message : "Save failed";
+      addToast(message, "error");
     }
   };
 
-  const handleDelete = async (id) => {
+  const handleDelete = async (id: string) => {
     try {
       await deleteUser(id);
       setDeleteConfirm(null);
-      addToast('User deleted', 'info');
+      addToast("User deleted", "info");
       loadUsers();
     } catch (err) {
-      addToast(err.message || 'Delete failed', 'error');
+      const message = err instanceof Error ? err.message : "Delete failed";
+      addToast(message, "error");
     }
   };
 
-  const handleFileUpload = async (e) => {
-    const file = e.target.files[0];
+  const handleFileUpload = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
     if (!file) return;
     try {
-      const res = await importStudentsCsv(file);
-      addToast(`Imported ${res.imported} students. ${res.failed} rows failed.`, res.failed ? 'warning' : 'success');
+      const res = (await importStudentsCsv(file)) as {
+        imported: number;
+        failed: number;
+        rowErrors?: { row: number; message: string }[];
+      };
+      addToast(`Imported ${res.imported} students. ${res.failed} rows failed.`, res.failed ? "warning" : "success");
       if (res.rowErrors?.length) {
-        const sample = res.rowErrors.slice(0, 3).map((r) => `Row ${r.row}: ${r.message}`).join('; ');
-        addToast(sample, 'info', 6000);
+        const sample = res.rowErrors
+          .slice(0, 3)
+          .map((r) => `Row ${r.row}: ${r.message}`)
+          .join("; ");
+        addToast(sample, "info", 6000);
       }
       loadUsers();
     } catch (err) {
-      addToast(err.message || 'Import failed', 'error');
+      const message = err instanceof Error ? err.message : "Import failed";
+      addToast(message, "error");
     }
-    e.target.value = '';
+    e.target.value = "";
   };
 
-  const f = (field) => (e) => setForm((p) => ({ ...p, [field]: e.target.value }));
+  const f =
+    (field: keyof FormState) =>
+    (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+      setForm((p) => ({ ...p, [field]: e.target.value }));
 
   return (
     <div className="space-y-6">
@@ -203,7 +255,7 @@ const UsersManagement = () => {
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {['student', 'tpo', 'coordinator', 'admin'].map((role) => (
+        {(["student", "tpo", "coordinator", "admin"] as Role[]).map((role) => (
           <div key={role} className="card !p-4 text-center">
             <div className="text-2xl font-bold text-gray-900">{users.filter((u) => u.role === role).length}</div>
             <div className="text-sm text-gray-500 capitalize mt-0.5">{role}s</div>
@@ -238,7 +290,7 @@ const UsersManagement = () => {
         <div className="flex items-center gap-3 p-4 border-b border-gray-200">
           <Users size={18} className="text-gray-400" />
           <span className="text-sm font-semibold text-gray-700">
-            {listLoading ? 'Loading…' : `${filtered.length} Users`}
+            {listLoading ? "Loading…" : `${filtered.length} Users`}
           </span>
         </div>
         <div className="overflow-x-auto w-full">
@@ -275,10 +327,10 @@ const UsersManagement = () => {
                       <Badge variant={u.role}>{u.role}</Badge>
                     </td>
                     <td className="px-4 py-3 text-gray-500 whitespace-nowrap">
-                      {u.department || '—'}
-                      {u.section && u.section !== '-' ? `-${u.section}` : ''}
+                      {u.department || "—"}
+                      {u.section && u.section !== "-" ? `-${u.section}` : ""}
                     </td>
-                    <td className="px-4 py-3 text-gray-900 font-medium whitespace-nowrap">{u.cgpa ?? '—'}</td>
+                    <td className="px-4 py-3 text-gray-900 font-medium whitespace-nowrap">{u.cgpa ?? "—"}</td>
                     <td className="px-4 py-3 whitespace-nowrap">
                       <div className="flex items-center gap-2 justify-end">
                         <button
@@ -307,17 +359,24 @@ const UsersManagement = () => {
         </div>
       </div>
 
-      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editUser ? 'Edit User' : 'Add New User'} size="lg">
+      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editUser ? "Edit User" : "Add New User"} size="lg">
         <form onSubmit={handleSave} className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <InputField label="Full Name" value={form.name} onChange={f('name')} required placeholder="e.g. Arjun Sharma" />
-            <InputField label="Email" type="email" value={form.email} onChange={f('email')} required placeholder="user@institute.edu" />
+            <InputField label="Full Name" value={form.name} onChange={f("name")} required placeholder="e.g. Arjun Sharma" />
+            <InputField
+              label="Email"
+              type="email"
+              value={form.email}
+              onChange={f("email")}
+              required
+              placeholder="user@institute.edu"
+            />
           </div>
           <InputField
-            label={editUser ? 'New password (optional)' : 'Password'}
+            label={editUser ? "New password (optional)" : "Password"}
             type="password"
             value={form.password}
-            onChange={f('password')}
+            onChange={f("password")}
             required={!editUser}
             placeholder="••••••••"
           />
@@ -325,12 +384,12 @@ const UsersManagement = () => {
             <SelectField
               label="Role"
               value={form.role}
-              onChange={f('role')}
+              onChange={f("role")}
               options={[
-                { value: 'student', label: 'Student' },
-                { value: 'tpo', label: 'TPO' },
-                { value: 'coordinator', label: 'Coordinator' },
-                { value: 'admin', label: 'Admin' },
+                { value: "student", label: "Student" },
+                { value: "tpo", label: "TPO" },
+                { value: "coordinator", label: "Coordinator" },
+                { value: "admin", label: "Admin" },
               ]}
             />
           </div>
@@ -338,24 +397,28 @@ const UsersManagement = () => {
             <SelectField
               label="Department"
               value={form.department}
-              onChange={f('department')}
-              options={['CSE', 'ECE', 'IT', 'MECH', 'CIVIL', '-'].map((d) => ({ value: d, label: d }))}
+              onChange={f("department")}
+              options={["CSE", "ECE", "IT", "MECH", "CIVIL", "-"].map((d) => ({ value: d, label: d }))}
             />
             <SelectField
               label="Section"
               value={form.section}
-              onChange={f('section')}
-              options={['A', 'B', 'C', '-'].map((s) => ({ value: s, label: s }))}
+              onChange={f("section")}
+              options={["A", "B", "C", "-"].map((s) => ({ value: s, label: s }))}
             />
-            <InputField label="CGPA" type="number" value={form.cgpa} onChange={f('cgpa')} placeholder="e.g. 8.5" />
+            <InputField label="CGPA" type="number" value={form.cgpa} onChange={f("cgpa")} placeholder="e.g. 8.5" />
           </div>
-          <InputField label="Active backlogs" type="number" value={form.backlogs} onChange={f('backlogs')} placeholder="0" />
+          <InputField label="Active backlogs" type="number" value={form.backlogs} onChange={f("backlogs")} placeholder="0" />
           <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 pt-4 sm:pt-2">
-            <button type="button" onClick={() => setModalOpen(false)} className="px-4 py-2 text-sm font-medium text-gray-700 rounded-lg border border-gray-300 hover:bg-gray-50 w-full sm:w-auto">
+            <button
+              type="button"
+              onClick={() => setModalOpen(false)}
+              className="px-4 py-2 text-sm font-medium text-gray-700 rounded-lg border border-gray-300 hover:bg-gray-50 w-full sm:w-auto"
+            >
               Cancel
             </button>
             <button type="submit" className="btn-primary w-full sm:w-auto">
-              {editUser ? 'Save Changes' : 'Create User'}
+              {editUser ? "Save Changes" : "Create User"}
             </button>
           </div>
         </form>
@@ -364,10 +427,18 @@ const UsersManagement = () => {
       <Modal open={!!deleteConfirm} onClose={() => setDeleteConfirm(null)} title="Delete User" size="sm">
         <p className="text-gray-600 text-sm mb-6">Are you sure you want to delete this user? This action cannot be undone.</p>
         <div className="flex flex-col-reverse sm:flex-row justify-end gap-3">
-          <button type="button" onClick={() => setDeleteConfirm(null)} className="px-4 py-2 text-sm font-medium text-gray-700 rounded-lg border border-gray-300 hover:bg-gray-50 w-full sm:w-auto">
+          <button
+            type="button"
+            onClick={() => setDeleteConfirm(null)}
+            className="px-4 py-2 text-sm font-medium text-gray-700 rounded-lg border border-gray-300 hover:bg-gray-50 w-full sm:w-auto"
+          >
             Cancel
           </button>
-          <button type="button" onClick={() => handleDelete(deleteConfirm)} className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 w-full sm:w-auto">
+          <button
+            type="button"
+            onClick={() => deleteConfirm && handleDelete(deleteConfirm)}
+            className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 w-full sm:w-auto"
+          >
             Delete
           </button>
         </div>

@@ -1,12 +1,36 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
-import { Search, Plus, Upload, Pencil, Trash2 } from 'lucide-react';
-import Modal from '../../components/ui/Modal';
-import { useToast } from '../../context/ToastContext';
-import { listCompanies, createCompany, updateCompany, deleteCompany, importCompaniesCsv } from '../../services/api';
+import { useState, useRef, useEffect, useCallback, type ChangeEvent, type FormEvent } from "react";
+import { Search, Plus, Upload, Pencil, Trash2 } from "lucide-react";
+import Modal from "../../components/ui/Modal";
+import { useToast } from "../../context/ToastContext";
+import { listCompanies, createCompany, updateCompany, deleteCompany, importCompaniesCsv } from "../../services/api";
 
-const BLANK = { name: '', website: '', contactEmail: '', contactPhone: '' };
+const BLANK = { name: "", website: "", contactEmail: "", contactPhone: "" };
 
-const InputField = ({ label, type = 'text', value, onChange, required, placeholder }) => (
+type FormState = typeof BLANK;
+
+interface CompanyRow {
+  id: string;
+  name: string;
+  website?: string;
+  contactEmail?: string;
+  contactPhone?: string;
+}
+
+const InputField = ({
+  label,
+  type = "text",
+  value,
+  onChange,
+  required,
+  placeholder,
+}: {
+  label: string;
+  type?: string;
+  value: string;
+  onChange: (e: ChangeEvent<HTMLInputElement>) => void;
+  required?: boolean;
+  placeholder?: string;
+}) => (
   <div>
     <label className="block text-sm font-medium text-gray-700 mb-1">
       {label}
@@ -24,22 +48,23 @@ const InputField = ({ label, type = 'text', value, onChange, required, placehold
 );
 
 const CompaniesPage = () => {
-  const [companies, setCompanies] = useState([]);
+  const [companies, setCompanies] = useState<CompanyRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
-  const [editing, setEditing] = useState(null);
-  const [form, setForm] = useState(BLANK);
-  const fileInputRef = useRef(null);
+  const [editing, setEditing] = useState<CompanyRow | null>(null);
+  const [form, setForm] = useState<FormState>(BLANK);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { addToast } = useToast();
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const { companies: rows } = await listCompanies();
+      const { companies: rows } = (await listCompanies()) as { companies?: CompanyRow[] };
       setCompanies(rows || []);
     } catch (e) {
-      addToast(e.message || 'Failed to load companies', 'error');
+      const message = e instanceof Error ? e.message : "Failed to load companies";
+      addToast(message, "error");
     } finally {
       setLoading(false);
     }
@@ -57,18 +82,18 @@ const CompaniesPage = () => {
     setModalOpen(true);
   };
 
-  const openEdit = (c) => {
+  const openEdit = (c: CompanyRow) => {
     setEditing(c);
     setForm({
       name: c.name,
-      website: c.website || '',
-      contactEmail: c.contactEmail || '',
-      contactPhone: c.contactPhone || '',
+      website: c.website || "",
+      contactEmail: c.contactEmail || "",
+      contactPhone: c.contactPhone || "",
     });
     setModalOpen(true);
   };
 
-  const handleSave = async (e) => {
+  const handleSave = async (e: FormEvent) => {
     e.preventDefault();
     try {
       const body = {
@@ -79,43 +104,48 @@ const CompaniesPage = () => {
       };
       if (editing) {
         await updateCompany(editing.id, body);
-        addToast('Company updated', 'success');
+        addToast("Company updated", "success");
       } else {
         await createCompany(body);
-        addToast('Company created', 'success');
+        addToast("Company created", "success");
       }
       setModalOpen(false);
       load();
     } catch (err) {
-      addToast(err.message || 'Save failed', 'error');
+      const message = err instanceof Error ? err.message : "Save failed";
+      addToast(message, "error");
     }
   };
 
-  const handleDelete = async (c) => {
+  const handleDelete = async (c: CompanyRow) => {
     if (!window.confirm(`Delete ${c.name}?`)) return;
     try {
       await deleteCompany(c.id);
-      addToast('Company deleted', 'info');
+      addToast("Company deleted", "info");
       load();
     } catch (err) {
-      addToast(err.message || 'Delete failed', 'error');
+      const message = err instanceof Error ? err.message : "Delete failed";
+      addToast(message, "error");
     }
   };
 
-  const handleFileUpload = async (e) => {
-    const file = e.target.files[0];
+  const handleFileUpload = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
     if (!file) return;
     try {
-      const res = await importCompaniesCsv(file);
-      addToast(`Imported ${res.imported} companies. ${res.failed} rows failed.`, res.failed ? 'warning' : 'success');
+      const res = (await importCompaniesCsv(file)) as { imported: number; failed: number };
+      addToast(`Imported ${res.imported} companies. ${res.failed} rows failed.`, res.failed ? "warning" : "success");
       load();
     } catch (err) {
-      addToast(err.message || 'Import failed', 'error');
+      const message = err instanceof Error ? err.message : "Import failed";
+      addToast(message, "error");
     }
-    e.target.value = '';
+    e.target.value = "";
   };
 
-  const f = (field) => (e) => setForm((p) => ({ ...p, [field]: e.target.value }));
+  const f =
+    (field: keyof FormState) => (e: ChangeEvent<HTMLInputElement>) =>
+      setForm((p) => ({ ...p, [field]: e.target.value }));
 
   return (
     <div className="space-y-6">
@@ -163,16 +193,31 @@ const CompaniesPage = () => {
                   <h3 className="font-bold text-gray-900 text-lg leading-tight">{c.name}</h3>
                   {c.contactEmail && <p className="text-sm text-gray-500 mt-1 truncate">{c.contactEmail}</p>}
                   {c.website && (
-                    <a href={c.website.startsWith('http') ? c.website : `https://${c.website}`} className="text-xs text-primary mt-1 inline-block truncate max-w-full" target="_blank" rel="noreferrer">
+                    <a
+                      href={c.website.startsWith("http") ? c.website : `https://${c.website}`}
+                      className="text-xs text-primary mt-1 inline-block truncate max-w-full"
+                      target="_blank"
+                      rel="noreferrer"
+                    >
                       {c.website}
                     </a>
                   )}
                 </div>
                 <div className="flex gap-1 shrink-0">
-                  <button type="button" onClick={() => openEdit(c)} className="p-2 rounded-lg hover:bg-gray-100 text-gray-400" title="Edit">
+                  <button
+                    type="button"
+                    onClick={() => openEdit(c)}
+                    className="p-2 rounded-lg hover:bg-gray-100 text-gray-400"
+                    title="Edit"
+                  >
                     <Pencil size={16} />
                   </button>
-                  <button type="button" onClick={() => handleDelete(c)} className="p-2 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500" title="Delete">
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(c)}
+                    className="p-2 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500"
+                    title="Delete"
+                  >
                     <Trash2 size={16} />
                   </button>
                 </div>
@@ -185,20 +230,30 @@ const CompaniesPage = () => {
         </div>
       )}
 
-      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editing ? 'Edit Company' : 'Add Company'}>
+      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editing ? "Edit Company" : "Add Company"}>
         <form onSubmit={handleSave} className="space-y-4">
-          <InputField label="Company Name" value={form.name} onChange={f('name')} required placeholder="e.g. Acme Corp" />
-          <InputField label="Website" value={form.website} onChange={f('website')} placeholder="https://example.com" />
+          <InputField label="Company Name" value={form.name} onChange={f("name")} required placeholder="e.g. Acme Corp" />
+          <InputField label="Website" value={form.website} onChange={f("website")} placeholder="https://example.com" />
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <InputField label="Contact email" type="email" value={form.contactEmail} onChange={f('contactEmail')} placeholder="hr@company.com" />
-            <InputField label="Contact phone" value={form.contactPhone} onChange={f('contactPhone')} placeholder="+91 …" />
+            <InputField
+              label="Contact email"
+              type="email"
+              value={form.contactEmail}
+              onChange={f("contactEmail")}
+              placeholder="hr@company.com"
+            />
+            <InputField label="Contact phone" value={form.contactPhone} onChange={f("contactPhone")} placeholder="+91 …" />
           </div>
           <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 pt-4 sm:pt-2">
-            <button type="button" onClick={() => setModalOpen(false)} className="px-4 py-2 text-sm font-medium text-gray-700 rounded-lg border border-gray-300 hover:bg-gray-50 w-full sm:w-auto">
+            <button
+              type="button"
+              onClick={() => setModalOpen(false)}
+              className="px-4 py-2 text-sm font-medium text-gray-700 rounded-lg border border-gray-300 hover:bg-gray-50 w-full sm:w-auto"
+            >
               Cancel
             </button>
             <button type="submit" className="btn-primary w-full sm:w-auto">
-              {editing ? 'Save' : 'Create'}
+              {editing ? "Save" : "Create"}
             </button>
           </div>
         </form>

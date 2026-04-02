@@ -1,15 +1,27 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Building2, Loader2 } from 'lucide-react';
-import { useAuth } from '../../context/AuthContext';
-import { useToast } from '../../context/ToastContext';
-import { listDrives, putDriveAssignments } from '../../services/api';
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { Building2, Loader2 } from "lucide-react";
+import { useAuth } from "../../context/AuthContext";
+import { useToast } from "../../context/ToastContext";
+import { listDrives, putDriveAssignments } from "../../services/api";
 
-const SECTION_OPTIONS = ['A', 'B', 'C', 'D'];
+const SECTION_OPTIONS = ["A", "B", "C", "D"];
 
-function sectionsForDept(drive, deptNorm) {
+interface SectionAssignmentRow {
+  department?: string;
+  sections?: string[];
+}
+
+interface DriveRow {
+  id: string;
+  title?: string;
+  company?: { name?: string } | string;
+  sectionAssignments?: SectionAssignmentRow[];
+}
+
+function sectionsForDept(drive: DriveRow, deptNorm: string) {
   if (!deptNorm) return [];
   const row = (drive.sectionAssignments || []).find(
-    (a) => (a.department || '').trim().toLowerCase() === deptNorm
+    (a) => (a.department || "").trim().toLowerCase() === deptNorm
   );
   return row?.sections || [];
 }
@@ -17,26 +29,27 @@ function sectionsForDept(drive, deptNorm) {
 const SectionAssignment = () => {
   const { user } = useAuth();
   const { addToast } = useToast();
-  const [drives, setDrives] = useState([]);
+  const [drives, setDrives] = useState<DriveRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [draft, setDraft] = useState({});
-  const [savingId, setSavingId] = useState(null);
+  const [draft, setDraft] = useState<Record<string, string[]>>({});
+  const [savingId, setSavingId] = useState<string | null>(null);
 
-  const dept = (user?.department || '').trim();
+  const dept = (user?.department || "").trim();
   const deptNorm = dept.toLowerCase();
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const { drives: rows } = await listDrives();
+      const { drives: rows } = (await listDrives()) as { drives?: DriveRow[] };
       setDrives(rows || []);
-      const next = {};
+      const next: Record<string, string[]> = {};
       (rows || []).forEach((d) => {
         next[d.id] = sectionsForDept(d, deptNorm);
       });
       setDraft(next);
     } catch (e) {
-      addToast(e.message || 'Failed to load drives', 'error');
+      const message = e instanceof Error ? e.message : "Failed to load drives";
+      addToast(message, "error");
     } finally {
       setLoading(false);
     }
@@ -46,7 +59,7 @@ const SectionAssignment = () => {
     load();
   }, [load]);
 
-  const toggleSection = (driveId, letter) => {
+  const toggleSection = (driveId: string, letter: string) => {
     setDraft((prev) => {
       const cur = [...(prev[driveId] || [])];
       const i = cur.findIndex((s) => s.toLowerCase() === letter.toLowerCase());
@@ -56,18 +69,19 @@ const SectionAssignment = () => {
     });
   };
 
-  const save = async (driveId) => {
+  const save = async (driveId: string) => {
     if (!dept) {
-      addToast('Your account has no department set.', 'error');
+      addToast("Your account has no department set.", "error");
       return;
     }
     setSavingId(driveId);
     try {
       await putDriveAssignments(driveId, [{ department: dept, sections: draft[driveId] || [] }]);
-      addToast('Section assignment saved', 'success');
+      addToast("Section assignment saved", "success");
       load();
     } catch (e) {
-      addToast(e.message || 'Save failed', 'error');
+      const message = e instanceof Error ? e.message : "Save failed";
+      addToast(message, "error");
     } finally {
       setSavingId(null);
     }
@@ -116,7 +130,7 @@ const SectionAssignment = () => {
         <div className="space-y-4">
           {drives.map((drive) => {
             const companyName =
-              typeof drive.company === 'object' && drive.company?.name ? drive.company.name : 'Company';
+              typeof drive.company === "object" && drive.company?.name ? drive.company.name : "Company";
             const selected = draft[drive.id] || [];
             return (
               <div key={drive.id} className="card">
@@ -126,7 +140,7 @@ const SectionAssignment = () => {
                       <Building2 size={20} />
                     </div>
                     <div>
-                      <h3 className="font-semibold text-gray-900">{drive.title || 'Untitled drive'}</h3>
+                      <h3 className="font-semibold text-gray-900">{drive.title || "Untitled drive"}</h3>
                       <p className="text-sm text-gray-500">{companyName}</p>
                     </div>
                   </div>
@@ -136,7 +150,7 @@ const SectionAssignment = () => {
                     onClick={() => save(drive.id)}
                     className="btn-primary text-sm px-4 py-2 whitespace-nowrap disabled:opacity-60"
                   >
-                    {savingId === drive.id ? 'Saving…' : 'Save sections'}
+                    {savingId === drive.id ? "Saving…" : "Save sections"}
                   </button>
                 </div>
                 <p className="text-xs text-gray-500 mb-3">Sections for {dept}</p>
@@ -149,7 +163,7 @@ const SectionAssignment = () => {
                         type="button"
                         onClick={() => toggleSection(drive.id, letter)}
                         className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
-                          on ? 'bg-primary text-white border-primary' : 'bg-white text-gray-600 border-gray-300 hover:border-primary'
+                          on ? "bg-primary text-white border-primary" : "bg-white text-gray-600 border-gray-300 hover:border-primary"
                         }`}
                       >
                         {letter}

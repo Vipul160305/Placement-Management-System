@@ -1,6 +1,6 @@
-import { useState } from 'react';
-import { useAuth } from '../context/AuthContext';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { useState, type CSSProperties, type FormEvent } from "react";
+import { useAuth } from "../context/AuthContext";
+import { Navigate, useNavigate } from "react-router-dom";
 import {
   GraduationCap,
   Loader2,
@@ -10,50 +10,73 @@ import {
   Briefcase,
   ArrowRight,
   ArrowLeft,
-} from 'lucide-react';
-import { useToast } from '../context/ToastContext';
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import { useToast } from "../context/ToastContext";
+import type { Role } from "../types/auth";
 
-const roles = [
+const roles: {
+  role: Role;
+  label: string;
+  description: string;
+  icon: LucideIcon;
+  accent: string;
+  lightBg: string;
+}[] = [
   {
-    role: 'admin',
-    label: 'Administrator',
-    description: 'System config & user management',
+    role: "admin",
+    label: "Administrator",
+    description: "System config & user management",
     icon: ShieldCheck,
-    accent: '#003466',
-    lightBg: '#e8eef7',
+    accent: "#003466",
+    lightBg: "#e8eef7",
   },
   {
-    role: 'tpo',
-    label: 'Placement Officer',
-    description: 'Manage drives & analytics',
+    role: "tpo",
+    label: "Placement Officer",
+    description: "Manage drives & analytics",
     icon: Briefcase,
-    accent: '#006970',
-    lightBg: '#e5f4f5',
+    accent: "#006970",
+    lightBg: "#e5f4f5",
   },
   {
-    role: 'coordinator',
-    label: 'Coordinator',
-    description: 'Sectional assignments & tracking',
+    role: "coordinator",
+    label: "Coordinator",
+    description: "Sectional assignments & tracking",
     icon: Users,
-    accent: '#5c5490',
-    lightBg: '#eeecf8',
+    accent: "#5c5490",
+    lightBg: "#eeecf8",
   },
   {
-    role: 'student',
-    label: 'Student',
-    description: 'Track applications & drives',
+    role: "student",
+    label: "Student",
+    description: "Track applications & drives",
     icon: User,
-    accent: '#7a4f00',
-    lightBg: '#f7f0e5',
+    accent: "#7a4f00",
+    lightBg: "#f7f0e5",
   },
 ];
 
-const RoleCard = ({ label, description, icon: Icon, accent, lightBg, onClick }) => (
+const RoleCard = ({
+  label,
+  description,
+  icon: Icon,
+  accent,
+  lightBg,
+  onClick,
+}: {
+  label: string;
+  description: string;
+  icon: LucideIcon;
+  accent: string;
+  lightBg: string;
+  onClick: () => void;
+}) => (
   <button
     type="button"
     onClick={onClick}
     className="group w-full text-left rounded-xl border border-gray-100 bg-white hover:border-transparent hover:shadow-lg transition-all duration-250 p-4 flex items-center gap-4 relative overflow-hidden"
-    style={{ '--accent': accent }}
+    style={{ "--accent": accent } as CSSProperties}
   >
     <span
       className="absolute left-0 top-0 h-full w-1 rounded-l-xl opacity-0 group-hover:opacity-100 transition-opacity duration-200"
@@ -83,10 +106,10 @@ const Login = () => {
   const { login, logout, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const { addToast } = useToast();
-  const [step, setStep] = useState('choose');
-  const [selectedRole, setSelectedRole] = useState(null);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [step, setStep] = useState<"choose" | "credentials">("choose");
+  const [selectedRole, setSelectedRole] = useState<Role | null>(null);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   const selectedMeta = roles.find((r) => r.role === selectedRole);
@@ -94,18 +117,18 @@ const Login = () => {
   if (isAuthenticated) return <Navigate to="/" replace />;
 
   const goBackToRoles = () => {
-    setStep('choose');
+    setStep("choose");
     setSelectedRole(null);
-    setEmail('');
-    setPassword('');
+    setEmail("");
+    setPassword("");
   };
 
-  const handleChooseRole = (role) => {
+  const handleChooseRole = (role: Role) => {
     setSelectedRole(role);
-    setStep('credentials');
+    setStep("credentials");
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
     try {
@@ -114,14 +137,15 @@ const Login = () => {
         await logout();
         addToast(
           `This account is signed up as ${user.role}. Go back and choose that role, or use different credentials.`,
-          'error'
+          "error"
         );
         return;
       }
-      addToast('Signed in successfully', 'success');
-      navigate('/', { replace: true });
+      addToast("Signed in successfully", "success");
+      navigate("/", { replace: true });
     } catch (err) {
-      addToast(err.message || 'Sign in failed', 'error');
+      const message = err instanceof Error ? err.message : "Sign in failed";
+      addToast(message, "error");
     } finally {
       setSubmitting(false);
     }
@@ -131,19 +155,19 @@ const Login = () => {
     <div className="min-h-screen flex bg-white">
       <div
         className="hidden lg:flex lg:w-[44%] xl:w-[42%] flex-col justify-between p-10 relative overflow-hidden"
-        style={{ background: 'linear-gradient(145deg, #002a52 0%, #003466 55%, #004080 100%)' }}
+        style={{ background: "linear-gradient(145deg, #002a52 0%, #003466 55%, #004080 100%)" }}
       >
         <div
           className="absolute -top-24 -right-24 w-72 h-72 rounded-full opacity-10"
-          style={{ background: 'radial-gradient(circle, #ffffff 0%, transparent 70%)' }}
+          style={{ background: "radial-gradient(circle, #ffffff 0%, transparent 70%)" }}
         />
         <div
           className="absolute bottom-10 -left-16 w-56 h-56 rounded-full opacity-[0.07]"
-          style={{ background: 'radial-gradient(circle, #8df2fc 0%, transparent 70%)' }}
+          style={{ background: "radial-gradient(circle, #8df2fc 0%, transparent 70%)" }}
         />
         <div
           className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[420px] h-[420px] rounded-full opacity-[0.04]"
-          style={{ background: 'radial-gradient(circle, #ffffff 0%, transparent 70%)' }}
+          style={{ background: "radial-gradient(circle, #ffffff 0%, transparent 70%)" }}
         />
 
         <div className="relative z-10 flex items-center gap-2.5">
@@ -157,7 +181,7 @@ const Login = () => {
           <div>
             <div
               className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium mb-5"
-              style={{ background: 'rgba(141,242,252,0.15)', color: '#8df2fc' }}
+              style={{ background: "rgba(141,242,252,0.15)", color: "#8df2fc" }}
             >
               <span className="w-1.5 h-1.5 rounded-full bg-[#8df2fc] animate-pulse" />
               Placement Management System
@@ -165,7 +189,7 @@ const Login = () => {
             <h1 className="text-3xl xl:text-4xl font-manrope font-bold text-white leading-snug">
               Connecting <br />
               talent with <br />
-              <span style={{ color: '#8df2fc' }}>opportunity.</span>
+              <span style={{ color: "#8df2fc" }}>opportunity.</span>
             </h1>
           </div>
           <p className="text-white/60 text-sm leading-relaxed max-w-xs">
@@ -173,9 +197,9 @@ const Login = () => {
           </p>
           <div className="flex gap-6">
             {[
-              { value: '4+', label: 'Roles' },
-              { value: '100%', label: 'Role-based' },
-              { value: '∞', label: 'Scalable' },
+              { value: "4+", label: "Roles" },
+              { value: "100%", label: "Role-based" },
+              { value: "∞", label: "Scalable" },
             ].map(({ value, label }) => (
               <div key={label}>
                 <p className="text-white font-manrope font-bold text-xl">{value}</p>
@@ -193,13 +217,13 @@ const Login = () => {
       <div className="flex-1 flex items-center justify-center p-6 bg-gray-50/60">
         <div className="w-full max-w-[400px]">
           <div className="flex lg:hidden items-center gap-2 mb-8 justify-center">
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: '#003466' }}>
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: "#003466" }}>
               <GraduationCap size={16} className="text-white" />
             </div>
             <span className="font-manrope font-bold text-gray-900 text-base">ScholarFlow</span>
           </div>
 
-          {step === 'choose' ? (
+          {step === "choose" ? (
             <>
               <div className="mb-8">
                 <h2 className="font-manrope font-bold text-2xl text-gray-900 leading-tight">Welcome back</h2>
@@ -270,7 +294,7 @@ const Login = () => {
                   className="w-full btn-primary flex items-center justify-center gap-2 py-2.5 disabled:opacity-60"
                 >
                   {submitting ? <Loader2 size={18} className="animate-spin" /> : null}
-                  {submitting ? 'Signing in…' : 'Sign in'}
+                  {submitting ? "Signing in…" : "Sign in"}
                 </button>
               </form>
             </>

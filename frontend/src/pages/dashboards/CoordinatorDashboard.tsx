@@ -1,5 +1,4 @@
-import React from 'react';
-import { Users, FileText, CheckCircle } from 'lucide-react';
+import { Users, FileText, CheckCircle } from "lucide-react";
 
 const CoordinatorDashboard = () => {
   return (

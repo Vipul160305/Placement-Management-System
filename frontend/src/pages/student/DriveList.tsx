@@ -1,46 +1,63 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Search, Briefcase, CalendarDays, CheckCircle, Loader2 } from 'lucide-react';
-import Badge from '../../components/ui/Badge';
-import { useAuth } from '../../context/AuthContext';
-import { useToast } from '../../context/ToastContext';
-import { listDrives, listMyApplications, applyToDrive } from '../../services/api';
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { Search, Briefcase, CalendarDays, CheckCircle, Loader2 } from "lucide-react";
+import Badge from "../../components/ui/Badge";
+import { useAuth } from "../../context/AuthContext";
+import { useToast } from "../../context/ToastContext";
+import { listDrives, listMyApplications, applyToDrive } from "../../services/api";
 
-function driveIdFromApp(app) {
-  const d = app.drive;
-  if (!d) return null;
-  if (typeof d === 'string') return d;
-  return d.id || d._id;
+interface DriveRow {
+  id: string;
+  title?: string;
+  jobRole?: string;
+  package?: string;
+  status?: string;
+  scheduledAt?: string;
+  company?: { name?: string } | string;
+  eligibility?: { eligible?: boolean; reasons?: string[] };
 }
 
-function formatDate(d) {
-  if (!d) return '—';
+interface AppRow {
+  drive?: string | { id?: string; _id?: string };
+}
+
+function driveIdFromApp(app: AppRow) {
+  const d = app.drive;
+  if (!d) return null;
+  if (typeof d === "string") return d;
+  return d.id || d._id || null;
+}
+
+function formatDate(d: string | undefined) {
+  if (!d) return "—";
   try {
     return new Date(d).toLocaleDateString();
   } catch {
-    return '—';
+    return "—";
   }
 }
 
 const DriveList = () => {
   const { user } = useAuth();
   const { addToast } = useToast();
-  const [drives, setDrives] = useState([]);
+  const [drives, setDrives] = useState<DriveRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [appliedIds, setAppliedIds] = useState(() => new Set());
-  const [applyingId, setApplyingId] = useState(null);
-  const [search, setSearch] = useState('');
-  const [filter, setFilter] = useState('all');
+  const [appliedIds, setAppliedIds] = useState(() => new Set<string>());
+  const [applyingId, setApplyingId] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState<"all" | "eligible" | "applied">("all");
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [{ drives: drows }, appsRes] = await Promise.all([listDrives(), listMyApplications()]);
+      const [dRes, appsRes] = await Promise.all([listDrives(), listMyApplications()]);
+      const drows = (dRes as { drives?: DriveRow[] }).drives;
       setDrives(drows || []);
-      const apps = appsRes.applications || [];
-      const ids = new Set(apps.map(driveIdFromApp).filter(Boolean));
+      const apps = (appsRes as { applications?: AppRow[] }).applications || [];
+      const ids = new Set(apps.map(driveIdFromApp).filter(Boolean) as string[]);
       setAppliedIds(ids);
     } catch (e) {
-      addToast(e.message || 'Failed to load drives', 'error');
+      const message = e instanceof Error ? e.message : "Failed to load drives";
+      addToast(message, "error");
     } finally {
       setLoading(false);
     }
@@ -53,27 +70,28 @@ const DriveList = () => {
   const filtered = useMemo(() => {
     return drives.filter((drive) => {
       const companyName =
-        typeof drive.company === 'object' && drive.company?.name ? drive.company.name : '';
-      const roleText = drive.jobRole || drive.title || '';
+        typeof drive.company === "object" && drive.company?.name ? drive.company.name : "";
+      const roleText = drive.jobRole || drive.title || "";
       const matchSearch =
         companyName.toLowerCase().includes(search.toLowerCase()) ||
         roleText.toLowerCase().includes(search.toLowerCase());
       const eligible = drive.eligibility?.eligible;
       const isApplied = appliedIds.has(drive.id);
-      if (filter === 'eligible') return matchSearch && eligible;
-      if (filter === 'applied') return matchSearch && isApplied;
+      if (filter === "eligible") return matchSearch && eligible;
+      if (filter === "applied") return matchSearch && isApplied;
       return matchSearch;
     });
   }, [drives, search, filter, appliedIds]);
 
-  const handleApply = async (driveId) => {
+  const handleApply = async (driveId: string) => {
     setApplyingId(driveId);
     try {
       await applyToDrive(driveId);
       setAppliedIds((prev) => new Set([...prev, driveId]));
-      addToast('Application submitted', 'success');
+      addToast("Application submitted", "success");
     } catch (e) {
-      addToast(e.message || 'Could not apply', 'error');
+      const message = e instanceof Error ? e.message : "Could not apply";
+      addToast(message, "error");
     } finally {
       setApplyingId(null);
     }
@@ -89,7 +107,7 @@ const DriveList = () => {
       <div className="card bg-primary/5 border-primary/10 !p-4 flex flex-wrap gap-6">
         <div>
           <span className="text-xs text-gray-500 block mb-0.5 font-medium">Your CGPA</span>
-          <span className="font-bold text-gray-900">{user?.cgpa ?? '—'}</span>
+          <span className="font-bold text-gray-900">{user?.cgpa ?? "—"}</span>
         </div>
         <div>
           <span className="text-xs text-gray-500 block mb-0.5 font-medium">Backlogs</span>
@@ -97,11 +115,11 @@ const DriveList = () => {
         </div>
         <div>
           <span className="text-xs text-gray-500 block mb-0.5 font-medium">Department</span>
-          <span className="font-bold text-gray-900">{user?.department ?? '—'}</span>
+          <span className="font-bold text-gray-900">{user?.department ?? "—"}</span>
         </div>
         <div>
           <span className="text-xs text-gray-500 block mb-0.5 font-medium">Section</span>
-          <span className="font-bold text-gray-900">{user?.section ?? '—'}</span>
+          <span className="font-bold text-gray-900">{user?.section ?? "—"}</span>
         </div>
       </div>
 
@@ -116,13 +134,13 @@ const DriveList = () => {
           />
         </div>
         <div className="flex gap-2">
-          {['all', 'eligible', 'applied'].map((f) => (
+          {(["all", "eligible", "applied"] as const).map((f) => (
             <button
               key={f}
               type="button"
               onClick={() => setFilter(f)}
               className={`px-4 py-2 text-sm font-medium rounded-lg border transition-colors capitalize ${
-                filter === f ? 'bg-primary text-white border-primary' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                filter === f ? "bg-primary text-white border-primary" : "bg-white text-gray-600 border-gray-300 hover:bg-gray-50"
               }`}
             >
               {f}
@@ -141,14 +159,17 @@ const DriveList = () => {
         <div className="space-y-4">
           {filtered.map((drive) => {
             const companyName =
-              typeof drive.company === 'object' && drive.company?.name ? drive.company.name : 'Company';
+              typeof drive.company === "object" && drive.company?.name ? drive.company.name : "Company";
             const eligible = !!drive.eligibility?.eligible;
             const isApplied = appliedIds.has(drive.id);
-            const isOpen = drive.status === 'open';
+            const isOpen = drive.status === "open";
             const reasons = drive.eligibility?.reasons || [];
 
             return (
-              <div key={drive.id} className={`card border ${eligible ? 'border-gray-200' : 'border-red-100 bg-red-50/30'}`}>
+              <div
+                key={drive.id}
+                className={`card border ${eligible ? "border-gray-200" : "border-red-100 bg-red-50/30"}`}
+              >
                 <div className="flex flex-col md:flex-row md:items-start gap-4 justify-between">
                   <div className="flex items-start gap-4">
                     <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center text-primary font-bold text-lg shrink-0">
@@ -157,8 +178,8 @@ const DriveList = () => {
                     <div>
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="font-semibold text-gray-900 text-base">{companyName}</span>
-                        <Badge variant={drive.status}>{drive.status}</Badge>
-                        <Badge variant={eligible ? 'eligible' : 'ineligible'}>{eligible ? 'Eligible' : 'Not eligible'}</Badge>
+                        <Badge variant={drive.status || "open"}>{drive.status}</Badge>
+                        <Badge variant={eligible ? "eligible" : "ineligible"}>{eligible ? "Eligible" : "Not eligible"}</Badge>
                       </div>
                       <p className="text-sm text-gray-600 mt-1">{drive.jobRole || drive.title}</p>
                       <div className="flex flex-wrap gap-4 mt-2 text-xs text-gray-500">
@@ -186,10 +207,10 @@ const DriveList = () => {
                         onClick={() => handleApply(drive.id)}
                         disabled={!eligible || !isOpen || applyingId === drive.id}
                         className={`px-5 py-2 rounded-lg text-sm font-semibold transition-colors ${
-                          eligible && isOpen ? 'btn-primary' : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                          eligible && isOpen ? "btn-primary" : "bg-gray-100 text-gray-400 cursor-not-allowed"
                         }`}
                       >
-                        {applyingId === drive.id ? 'Applying…' : 'Apply now'}
+                        {applyingId === drive.id ? "Applying…" : "Apply now"}
                       </button>
                     )}
                   </div>
@@ -197,9 +218,7 @@ const DriveList = () => {
                 {!eligible && reasons.length > 0 && (
                   <div className="mt-4 pt-4 border-t border-red-100 text-xs text-red-600 space-y-1">
                     {reasons.map((r, i) => (
-                      <div key={i}>
-                        • {r}
-                      </div>
+                      <div key={i}>• {r}</div>
                     ))}
                   </div>
                 )}

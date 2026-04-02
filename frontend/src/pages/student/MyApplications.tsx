@@ -1,21 +1,57 @@
-import { useState, useEffect, useCallback } from 'react';
-import { CheckCircle2, Circle, Clock, Trophy, XCircle, Briefcase, Download, Loader2 } from 'lucide-react';
-import Badge from '../../components/ui/Badge';
-import { useToast } from '../../context/ToastContext';
-import { listMyApplications } from '../../services/api';
+import { useState, useEffect, useCallback } from "react";
+import type { LucideIcon } from "lucide-react";
+import { CheckCircle2, Circle, Clock, Trophy, XCircle, Briefcase, Download, Loader2 } from "lucide-react";
+import Badge from "../../components/ui/Badge";
+import { useToast } from "../../context/ToastContext";
+import { listMyApplications } from "../../services/api";
 
-const STATUS_FLOW = ['applied', 'shortlisted', 'offered'];
+const STATUS_FLOW = ["applied", "shortlisted", "offered"] as const;
 
-const STATUS_CONFIG = {
-  applied: { label: 'Applied', icon: Clock, color: 'text-blue-500', bg: 'bg-blue-50', border: 'border-blue-200' },
-  shortlisted: { label: 'Shortlisted', icon: CheckCircle2, color: 'text-amber-500', bg: 'bg-amber-50', border: 'border-amber-200' },
-  offered: { label: 'Offer Received', icon: Trophy, color: 'text-green-500', bg: 'bg-green-50', border: 'border-green-200' },
-  rejected: { label: 'Rejected', icon: XCircle, color: 'text-red-400', bg: 'bg-red-50', border: 'border-red-100' },
-  withdrawn: { label: 'Withdrawn', icon: XCircle, color: 'text-gray-500', bg: 'bg-gray-50', border: 'border-gray-200' },
+type AppStatus = (typeof STATUS_FLOW)[number] | "rejected" | "withdrawn";
+
+const STATUS_CONFIG: Record<
+  AppStatus,
+  { label: string; icon: LucideIcon; color: string; bg: string; border: string }
+> = {
+  applied: {
+    label: "Applied",
+    icon: Clock,
+    color: "text-blue-500",
+    bg: "bg-blue-50",
+    border: "border-blue-200",
+  },
+  shortlisted: {
+    label: "Shortlisted",
+    icon: CheckCircle2,
+    color: "text-amber-500",
+    bg: "bg-amber-50",
+    border: "border-amber-200",
+  },
+  offered: {
+    label: "Offer Received",
+    icon: Trophy,
+    color: "text-green-500",
+    bg: "bg-green-50",
+    border: "border-green-200",
+  },
+  rejected: {
+    label: "Rejected",
+    icon: XCircle,
+    color: "text-red-400",
+    bg: "bg-red-50",
+    border: "border-red-100",
+  },
+  withdrawn: {
+    label: "Withdrawn",
+    icon: XCircle,
+    color: "text-gray-500",
+    bg: "bg-gray-50",
+    border: "border-gray-200",
+  },
 };
 
-const StepTracker = ({ currentStatus }) => {
-  if (currentStatus === 'rejected') {
+const StepTracker = ({ currentStatus }: { currentStatus: string }) => {
+  if (currentStatus === "rejected") {
     return (
       <div className="flex items-center gap-2 mt-4">
         <XCircle size={16} className="text-red-400" />
@@ -23,7 +59,7 @@ const StepTracker = ({ currentStatus }) => {
       </div>
     );
   }
-  if (currentStatus === 'withdrawn') {
+  if (currentStatus === "withdrawn") {
     return (
       <div className="flex items-center gap-2 mt-4">
         <span className="text-sm text-gray-500 font-medium">You withdrew this application.</span>
@@ -31,7 +67,7 @@ const StepTracker = ({ currentStatus }) => {
     );
   }
 
-  const currentIdx = STATUS_FLOW.indexOf(currentStatus);
+  const currentIdx = STATUS_FLOW.indexOf(currentStatus as (typeof STATUS_FLOW)[number]);
 
   return (
     <div className="flex items-center gap-2 mt-4 flex-wrap">
@@ -41,11 +77,13 @@ const StepTracker = ({ currentStatus }) => {
         const Icon = cfg.icon;
         return (
           <div key={step} className="flex items-center gap-2">
-            <div className={`flex items-center gap-1.5 text-xs font-semibold ${done ? cfg.color : 'text-gray-300'}`}>
+            <div className={`flex items-center gap-1.5 text-xs font-semibold ${done ? cfg.color : "text-gray-300"}`}>
               {done ? <Icon size={14} /> : <Circle size={14} />}
               {cfg.label}
             </div>
-            {idx < STATUS_FLOW.length - 1 && <div className={`h-px w-6 sm:w-10 ${idx < currentIdx ? 'bg-green-400' : 'bg-gray-200'}`} />}
+            {idx < STATUS_FLOW.length - 1 && (
+              <div className={`h-px w-6 sm:w-10 ${idx < currentIdx ? "bg-green-400" : "bg-gray-200"}`} />
+            )}
           </div>
         );
       })}
@@ -53,53 +91,68 @@ const StepTracker = ({ currentStatus }) => {
   );
 };
 
-function driveCompanyName(drive) {
-  if (!drive || typeof drive !== 'object') return '—';
-  const c = drive.company;
-  if (c && typeof c === 'object' && c.name) return c.name;
-  return '—';
+function driveCompanyName(drive: unknown): string {
+  if (!drive || typeof drive !== "object") return "—";
+  const c = (drive as { company?: { name?: string } }).company;
+  if (c && typeof c === "object" && c.name) return c.name;
+  return "—";
 }
 
-function formatAppliedDate(app) {
+function formatAppliedDate(app: { createdAt?: string; updatedAt?: string }) {
   const d = app.createdAt || app.updatedAt;
-  if (!d) return '—';
+  if (!d) return "—";
   try {
     return new Date(d).toLocaleDateString();
   } catch {
-    return '—';
+    return "—";
   }
 }
 
-function applicationsToCsv(apps) {
-  const headers = ['company', 'title', 'role', 'package', 'status', 'applied'];
-  const lines = [headers.join(',')];
+interface ApplicationRow {
+  id?: string;
+  _id?: string;
+  status: string;
+  drive?: {
+    title?: string;
+    jobRole?: string;
+    package?: string;
+    company?: { name?: string };
+  };
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+function applicationsToCsv(apps: ApplicationRow[]) {
+  const headers = ["company", "title", "role", "package", "status", "applied"];
+  const lines = [headers.join(",")];
   for (const app of apps) {
     const d = app.drive;
     const row = [
       driveCompanyName(d),
-      (d && d.title) || '',
-      (d && d.jobRole) || '',
-      (d && d.package) || '',
+      (d && d.title) || "",
+      (d && d.jobRole) || "",
+      (d && d.package) || "",
       app.status,
       formatAppliedDate(app),
     ].map((cell) => `"${String(cell).replace(/"/g, '""')}"`);
-    lines.push(row.join(','));
+    lines.push(row.join(","));
   }
-  return lines.join('\n');
+  return lines.join("\n");
 }
 
 const MyApplications = () => {
-  const [applications, setApplications] = useState([]);
+  const [applications, setApplications] = useState<ApplicationRow[]>([]);
   const [loading, setLoading] = useState(true);
   const { addToast } = useToast();
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const { applications: rows } = await listMyApplications();
+      const { applications: rows } = (await listMyApplications()) as { applications?: ApplicationRow[] };
       setApplications(rows || []);
     } catch (e) {
-      addToast(e.message || 'Failed to load applications', 'error');
+      const message = e instanceof Error ? e.message : "Failed to load applications";
+      addToast(message, "error");
     } finally {
       setLoading(false);
     }
@@ -111,25 +164,28 @@ const MyApplications = () => {
 
   const counts = {
     total: applications.length,
-    applied: applications.filter((a) => a.status === 'applied').length,
-    shortlisted: applications.filter((a) => a.status === 'shortlisted').length,
-    offered: applications.filter((a) => a.status === 'offered').length,
+    applied: applications.filter((a) => a.status === "applied").length,
+    shortlisted: applications.filter((a) => a.status === "shortlisted").length,
+    offered: applications.filter((a) => a.status === "offered").length,
   };
 
   const handleExport = () => {
     if (!applications.length) {
-      addToast('Nothing to export', 'info');
+      addToast("Nothing to export", "info");
       return;
     }
-    const blob = new Blob([applicationsToCsv(applications)], { type: 'text/csv;charset=utf-8' });
+    const blob = new Blob([applicationsToCsv(applications)], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = url;
-    a.download = 'my-applications.csv';
+    a.download = "my-applications.csv";
     a.click();
     URL.revokeObjectURL(url);
-    addToast('Download started', 'success');
+    addToast("Download started", "success");
   };
+
+  const statusCfg = (s: string) =>
+    STATUS_CONFIG[s as AppStatus] || STATUS_CONFIG.applied;
 
   return (
     <div className="space-y-6">
@@ -149,10 +205,10 @@ const MyApplications = () => {
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: 'Total applied', value: counts.total, color: 'text-gray-900', bg: 'bg-white' },
-          { label: 'Under review', value: counts.applied, color: 'text-blue-600', bg: 'bg-blue-50' },
-          { label: 'Shortlisted', value: counts.shortlisted, color: 'text-amber-600', bg: 'bg-amber-50' },
-          { label: 'Offers', value: counts.offered, color: 'text-green-600', bg: 'bg-green-50' },
+          { label: "Total applied", value: counts.total, color: "text-gray-900", bg: "bg-white" },
+          { label: "Under review", value: counts.applied, color: "text-blue-600", bg: "bg-blue-50" },
+          { label: "Shortlisted", value: counts.shortlisted, color: "text-amber-600", bg: "bg-amber-50" },
+          { label: "Offers", value: counts.offered, color: "text-green-600", bg: "bg-green-50" },
         ].map((s) => (
           <div key={s.label} className={`card !p-4 ${s.bg} border`}>
             <div className={`text-2xl font-bold ${s.color}`}>{s.value}</div>
@@ -174,7 +230,7 @@ const MyApplications = () => {
         <div className="space-y-4">
           {applications.map((app) => {
             const d = app.drive;
-            const cfg = STATUS_CONFIG[app.status] || STATUS_CONFIG.applied;
+            const cfg = statusCfg(app.status);
             const Icon = cfg.icon;
             return (
               <div key={app.id || app._id} className={`card border ${cfg.border}`}>
@@ -189,8 +245,8 @@ const MyApplications = () => {
                         <Badge variant={app.status}>{cfg.label}</Badge>
                       </div>
                       <p className="text-sm text-gray-500 mt-0.5">
-                        {(d && d.jobRole) || (d && d.title) || '—'}
-                        {d?.package ? ` · ${d.package}` : ''}
+                        {(d && d.jobRole) || (d && d.title) || "—"}
+                        {d?.package ? ` · ${d.package}` : ""}
                       </p>
                       <p className="text-xs text-gray-400 mt-1">Applied on {formatAppliedDate(app)}</p>
                     </div>

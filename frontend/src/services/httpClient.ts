@@ -1,32 +1,38 @@
-import axios from 'axios';
+import axios from "axios";
+import type { User } from "../types/auth";
 
-const baseURL = import.meta.env.VITE_API_URL ?? '';
+const baseURL = import.meta.env.VITE_API_URL ?? "";
 
 export const rawClient = axios.create({ baseURL });
 
 let onUnauthorized = () => {};
-export function setUnauthorizedHandler(fn) {
-  onUnauthorized = typeof fn === 'function' ? fn : () => {};
+export function setUnauthorizedHandler(fn: (() => void) | undefined | null) {
+  onUnauthorized = typeof fn === "function" ? fn : () => {};
 }
 
-const ACCESS = 'pms_access_token';
-const REFRESH = 'pms_refresh_token';
+const ACCESS = "pms_access_token";
+const REFRESH = "pms_refresh_token";
 
 export function getAccessToken() {
   return localStorage.getItem(ACCESS);
 }
 
-export function persistSession({ accessToken, refreshToken, user }) {
+export function persistSession(payload: {
+  accessToken?: string;
+  refreshToken?: string;
+  user?: User | null;
+}) {
+  const { accessToken, refreshToken, user } = payload;
   if (accessToken) localStorage.setItem(ACCESS, accessToken);
   if (refreshToken) localStorage.setItem(REFRESH, refreshToken);
   if (user !== undefined && user !== null)
-    localStorage.setItem('pms_user', JSON.stringify(user));
+    localStorage.setItem("pms_user", JSON.stringify(user));
 }
 
 export function clearSession() {
   localStorage.removeItem(ACCESS);
   localStorage.removeItem(REFRESH);
-  localStorage.removeItem('pms_user');
+  localStorage.removeItem("pms_user");
 }
 
 export const httpClient = axios.create({ baseURL });
@@ -44,8 +50,8 @@ httpClient.interceptors.response.use(
     const cfg = error.config;
     if (!res || res.status !== 401 || !cfg || cfg._retry) return Promise.reject(error);
 
-    const url = typeof cfg.url === 'string' ? cfg.url : '';
-    if (url.includes('/api/auth/refresh') || url.includes('/api/auth/login')) {
+    const url = typeof cfg.url === "string" ? cfg.url : "";
+    if (url.includes("/api/auth/refresh") || url.includes("/api/auth/login")) {
       return Promise.reject(error);
     }
 
@@ -57,9 +63,12 @@ httpClient.interceptors.response.use(
 
     cfg._retry = true;
     try {
-      const { data: body } = await rawClient.post('/api/auth/refresh', { refreshToken: rt });
-      if (!body?.success || !body.data?.accessToken) throw new Error('refresh failed');
-      const { accessToken, refreshToken: newRt } = body.data;
+      const { data: body } = await rawClient.post("/api/auth/refresh", { refreshToken: rt });
+      if (!body?.success || !body.data?.accessToken) throw new Error("refresh failed");
+      const { accessToken, refreshToken: newRt } = body.data as {
+        accessToken: string;
+        refreshToken?: string;
+      };
       localStorage.setItem(ACCESS, accessToken);
       if (newRt) localStorage.setItem(REFRESH, newRt);
       cfg.headers.Authorization = `Bearer ${accessToken}`;
