@@ -4,7 +4,6 @@ import { Navigate, useNavigate } from "react-router-dom";
 import {
   GraduationCap,
   Loader2,
-  ShieldCheck,
   User,
   Users,
   Briefcase,
@@ -24,25 +23,17 @@ const roles: {
   lightBg: string;
 }[] = [
   {
-    role: "admin",
-    label: "Administrator",
-    description: "System config & user management",
-    icon: ShieldCheck,
+    role: "tpo",
+    label: "Placement Officer",
+    description: "Manage drives, users & analytics",
+    icon: Briefcase,
     accent: "#003466",
     lightBg: "#e8eef7",
   },
   {
-    role: "tpo",
-    label: "Placement Officer",
-    description: "Manage drives & analytics",
-    icon: Briefcase,
-    accent: "#006970",
-    lightBg: "#e5f4f5",
-  },
-  {
-    role: "coordinator",
-    label: "Coordinator",
-    description: "Sectional assignments & tracking",
+    role: "hr",
+    label: "Company HR",
+    description: "View applicants & manage hiring",
     icon: Users,
     accent: "#5c5490",
     lightBg: "#eeecf8",

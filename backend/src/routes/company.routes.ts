@@ -13,7 +13,7 @@ companyRouter.get("/:id", authenticate, asyncHandler(company.getCompany));
 companyRouter.post(
   "/",
   authenticate,
-  authorize("admin", "tpo"),
+  authorize("tpo"),
   createCompanyRules,
   validateRequest,
   asyncHandler(company.createCompany)
@@ -21,12 +21,12 @@ companyRouter.post(
 companyRouter.patch(
   "/:id",
   authenticate,
-  authorize("admin", "tpo"),
+  authorize("tpo"),
   asyncHandler(company.updateCompany)
 );
 companyRouter.delete(
   "/:id",
   authenticate,
-  authorize("admin", "tpo"),
+  authorize("tpo"),
   asyncHandler(company.deleteCompany)
 );

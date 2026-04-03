@@ -9,7 +9,7 @@ export const importRouter = Router();
 importRouter.post(
   "/students",
   authenticate,
-  authorize("admin"),
+  authorize("tpo"),
   csvUpload.single("file"),
   asyncHandler(imp.importStudents)
 );
@@ -17,7 +17,7 @@ importRouter.post(
 importRouter.post(
   "/companies",
   authenticate,
-  authorize("admin", "tpo"),
+  authorize("tpo"),
   csvUpload.single("file"),
   asyncHandler(imp.importCompanies)
 );

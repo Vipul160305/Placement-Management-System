@@ -6,7 +6,9 @@ import * as stats from "../controllers/stats.controller.js";
 export const statsRouter = Router();
 
 statsRouter.use(authenticate);
-statsRouter.use(authorize("admin", "tpo", "coordinator"));
+statsRouter.use(authorize("tpo", "hr"));
 
 statsRouter.get("/overview", asyncHandler(stats.overview));
 statsRouter.get("/by-department", asyncHandler(stats.byDepartment));
+// Live dashboard stats for TPO
+statsRouter.get("/dashboard", asyncHandler(stats.dashboardStats));

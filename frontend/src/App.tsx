@@ -7,21 +7,18 @@ import Login from "./pages/Login";
 import DashboardLayout from "./components/Layout/DashboardLayout";
 
 // Dashboards
-import AdminDashboard from "./pages/dashboards/AdminDashboard";
 import TPODashboard from "./pages/dashboards/TPODashboard";
-import CoordinatorDashboard from "./pages/dashboards/CoordinatorDashboard";
 import StudentDashboard from "./pages/dashboards/StudentDashboard";
 
-// Admin Pages
-import UsersManagement from "./pages/admin/UsersManagement";
-
 // TPO Pages
+import UsersManagement from "./pages/admin/UsersManagement";
 import CompaniesPage from "./pages/tpo/CompaniesPage";
 import DrivesPage from "./pages/tpo/DrivesPage";
 import Analytics from "./pages/tpo/Analytics";
+import ApplicationsPage from "./pages/tpo/ApplicationsPage";
 
-// Coordinator Pages
-import SectionAssignment from "./pages/coordinator/SectionAssignment";
+// HR Pages
+import HRDashboard from "./pages/hr/HRDashboard";
 
 // Student Pages
 import DriveList from "./pages/student/DriveList";
@@ -59,12 +56,10 @@ const DashboardRouter = () => {
   }
   if (!user) return <Navigate to="/login" replace />;
   switch (user.role) {
-    case "admin":
-      return <Navigate to="/admin" replace />;
     case "tpo":
       return <Navigate to="/tpo" replace />;
-    case "coordinator":
-      return <Navigate to="/coordinator" replace />;
+    case "hr":
+      return <Navigate to="/hr" replace />;
     case "student":
       return <Navigate to="/student" replace />;
     default:
@@ -83,19 +78,27 @@ const AppRoutes = () => (
       <Route path="/" element={<DashboardRouter />} />
 
       <Route element={<DashboardLayout />}>
-        {/* Admin */}
-        <Route path="/admin" element={<PR roles={["admin"]}><AdminDashboard /></PR>} />
-        <Route path="/admin/users" element={<PR roles={["admin"]}><UsersManagement /></PR>} />
-
-        {/* TPO */}
+        {/* TPO — full access */}
         <Route path="/tpo" element={<PR roles={["tpo"]}><TPODashboard /></PR>} />
         <Route path="/tpo/create" element={<PR roles={["tpo"]}><DrivesPage /></PR>} />
         <Route path="/tpo/companies" element={<PR roles={["tpo"]}><CompaniesPage /></PR>} />
+        <Route path="/tpo/applications" element={<PR roles={["tpo"]}><ApplicationsPage /></PR>} />
         <Route path="/tpo/stats" element={<PR roles={["tpo"]}><Analytics /></PR>} />
+        <Route path="/tpo/users" element={<PR roles={["tpo"]}><UsersManagement /></PR>} />
 
-        {/* Coordinator */}
-        <Route path="/coordinator" element={<PR roles={["coordinator"]}><CoordinatorDashboard /></PR>} />
-        <Route path="/coordinator/sections" element={<PR roles={["coordinator"]}><SectionAssignment /></PR>} />
+        {/* Legacy admin routes — redirect to tpo equivalents */}
+        <Route path="/admin" element={<Navigate to="/tpo" replace />} />
+        <Route path="/admin/users" element={<Navigate to="/tpo/users" replace />} />
+        <Route path="/admin/logs" element={<Navigate to="/tpo" replace />} />
+
+        {/* Coordinator legacy redirects */}
+        <Route path="/coordinator" element={<PR roles={["hr"]}><HRDashboard /></PR>} />
+        <Route path="/coordinator/sections" element={<PR roles={["hr"]}><HRDashboard /></PR>} />
+        <Route path="/coordinator/applications" element={<PR roles={["hr"]}><ApplicationsPage /></PR>} />
+
+        {/* HR */}
+        <Route path="/hr" element={<PR roles={["hr"]}><HRDashboard /></PR>} />
+        <Route path="/hr/applications" element={<PR roles={["hr"]}><ApplicationsPage /></PR>} />
 
         {/* Student */}
         <Route path="/student" element={<PR roles={["student"]}><StudentDashboard /></PR>} />

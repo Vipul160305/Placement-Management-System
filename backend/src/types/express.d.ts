@@ -9,6 +9,7 @@ declare global {
         role: UserRole;
         department?: string;
         section?: string;
+        companyId?: string;
       };
     }
   }

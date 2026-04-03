@@ -8,7 +8,8 @@ import {
   FileText,
   LogOut,
   ClipboardList,
-  ShieldCheck,
+  BarChart2,
+  Building2,
   X,
 } from "lucide-react";
 
@@ -54,28 +55,22 @@ const Sidebar = ({
 
   const renderLinks = () => {
     switch (user.role) {
-      case "admin":
-        return (
-          <>
-            <SidebarLink to="/admin" icon={ShieldCheck} label="System Overview" onClick={closeSidebar} />
-            <SidebarLink to="/admin/users" icon={Users} label="Users" onClick={closeSidebar} />
-            <SidebarLink to="/admin/logs" icon={ClipboardList} label="Audit Logs" onClick={closeSidebar} />
-          </>
-        );
       case "tpo":
         return (
           <>
             <SidebarLink to="/tpo" icon={LayoutDashboard} label="Dashboard" onClick={closeSidebar} />
             <SidebarLink to="/tpo/create" icon={Briefcase} label="Placement Drives" onClick={closeSidebar} />
-            <SidebarLink to="/tpo/companies" icon={Users} label="Companies" onClick={closeSidebar} />
-            <SidebarLink to="/tpo/stats" icon={FileText} label="Analytics" onClick={closeSidebar} />
+            <SidebarLink to="/tpo/companies" icon={Building2} label="Companies" onClick={closeSidebar} />
+            <SidebarLink to="/tpo/applications" icon={ClipboardList} label="Applications" onClick={closeSidebar} />
+            <SidebarLink to="/tpo/stats" icon={BarChart2} label="Analytics" onClick={closeSidebar} />
+            <SidebarLink to="/tpo/users" icon={Users} label="Users" onClick={closeSidebar} />
           </>
         );
-      case "coordinator":
+      case "hr":
         return (
           <>
-            <SidebarLink to="/coordinator" icon={LayoutDashboard} label="Overview" onClick={closeSidebar} />
-            <SidebarLink to="/coordinator/sections" icon={Users} label="My Sections" onClick={closeSidebar} />
+            <SidebarLink to="/hr" icon={LayoutDashboard} label="Dashboard" onClick={closeSidebar} />
+            <SidebarLink to="/hr/applications" icon={ClipboardList} label="Applications" onClick={closeSidebar} />
           </>
         );
       case "student":

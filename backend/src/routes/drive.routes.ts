@@ -11,13 +11,13 @@ driveRouter.get("/", asyncHandler(drive.listDrives));
 
 driveRouter.post(
   "/",
-  authorize("admin", "tpo"),
+  authorize("tpo"),
   asyncHandler(drive.createDrive)
 );
 
 driveRouter.put(
   "/:id/assignments",
-  authorize("admin", "tpo", "coordinator"),
+  authorize("admin", "tpo"),
   asyncHandler(drive.putAssignments)
 );
 
@@ -30,11 +30,11 @@ driveRouter.post(
 driveRouter.get("/:id", asyncHandler(drive.getDrive));
 driveRouter.patch(
   "/:id",
-  authorize("admin", "tpo"),
+  authorize("tpo"),
   asyncHandler(drive.updateDrive)
 );
 driveRouter.delete(
   "/:id",
-  authorize("admin", "tpo"),
+  authorize("tpo"),
   asyncHandler(drive.deleteDrive)
 );

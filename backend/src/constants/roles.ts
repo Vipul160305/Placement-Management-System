@@ -1,7 +1,6 @@
 export const USER_ROLES = [
-  "admin",
   "tpo",
-  "coordinator",
+  "hr",
   "student",
 ] as const;
 

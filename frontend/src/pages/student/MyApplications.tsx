@@ -3,7 +3,8 @@ import type { LucideIcon } from "lucide-react";
 import { CheckCircle2, Circle, Clock, Trophy, XCircle, Briefcase, Download, Loader2 } from "lucide-react";
 import Badge from "../../components/ui/Badge";
 import { useToast } from "../../context/ToastContext";
-import { listMyApplications } from "../../services/api";
+import { listMyApplications, updateApplicationStatus } from "../../services/api";
+import ConfirmModal from "../../components/ui/ConfirmModal";
 
 const STATUS_FLOW = ["applied", "shortlisted", "offered"] as const;
 
@@ -143,6 +144,8 @@ function applicationsToCsv(apps: ApplicationRow[]) {
 const MyApplications = () => {
   const [applications, setApplications] = useState<ApplicationRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [withdrawTarget, setWithdrawTarget] = useState<ApplicationRow | null>(null);
+  const [withdrawing, setWithdrawing] = useState(false);
   const { addToast } = useToast();
 
   const load = useCallback(async () => {
@@ -167,6 +170,24 @@ const MyApplications = () => {
     applied: applications.filter((a) => a.status === "applied").length,
     shortlisted: applications.filter((a) => a.status === "shortlisted").length,
     offered: applications.filter((a) => a.status === "offered").length,
+  };
+
+  const handleWithdraw = async () => {
+    if (!withdrawTarget) return;
+    const id = (withdrawTarget.id || withdrawTarget._id) as string;
+    setWithdrawing(true);
+    try {
+      await updateApplicationStatus(id, "withdrawn");
+      setApplications((prev) =>
+        prev.map((a) => (a.id === id || a._id === id ? { ...a, status: "withdrawn" } : a))
+      );
+      addToast("Application withdrawn", "info");
+      setWithdrawTarget(null);
+    } catch (e) {
+      addToast(e instanceof Error ? e.message : "Could not withdraw", "error");
+    } finally {
+      setWithdrawing(false);
+    }
   };
 
   const handleExport = () => {
@@ -253,11 +274,34 @@ const MyApplications = () => {
                   </div>
                 </div>
                 <StepTracker currentStatus={app.status} />
+                {app.status === "applied" || app.status === "shortlisted" ? (
+                  <div className="mt-3 pt-3 border-t border-gray-100">
+                    <button
+                      type="button"
+                      onClick={() => setWithdrawTarget(app)}
+                      className="text-xs text-red-500 hover:text-red-700 font-medium hover:underline"
+                    >
+                      Withdraw application
+                    </button>
+                  </div>
+                ) : null}
               </div>
             );
           })}
         </div>
       )}
+
+      <ConfirmModal
+        open={!!withdrawTarget}
+        onClose={() => setWithdrawTarget(null)}
+        onConfirm={handleWithdraw}
+        title="Withdraw Application"
+        message={`Withdraw your application to ${driveCompanyName(withdrawTarget?.drive)}?`}
+        subMessage="You won't be able to re-apply to this drive after withdrawing."
+        confirmLabel="Yes, withdraw"
+        danger
+        loading={withdrawing}
+      />
     </div>
   );
 };

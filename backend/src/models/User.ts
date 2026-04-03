@@ -1,4 +1,4 @@
-import mongoose, { Schema, type Document, type Model } from "mongoose";
+import mongoose, { Schema, type Document, type Model, Types } from "mongoose";
 import type { UserRole } from "../constants/roles.js";
 
 export interface IUser extends Document {
@@ -11,6 +11,9 @@ export interface IUser extends Document {
   branch?: string;
   cgpa?: number;
   backlogCount?: number;
+  resumeUrl?: string;       // Cloudinary secure URL
+  resumePublicId?: string;  // Cloudinary public_id for deletion
+  companyId?: Types.ObjectId | null; // for hr role — links to Company
   refreshTokenHash?: string | null;
   createdAt: Date;
   updatedAt: Date;
@@ -30,13 +33,16 @@ const userSchema = new Schema<IUser>(
     role: {
       type: String,
       required: true,
-      enum: ["admin", "tpo", "coordinator", "student"],
+      enum: ["tpo", "hr", "student"],
     },
     department: { type: String, trim: true },
     section: { type: String, trim: true },
     branch: { type: String, trim: true },
     cgpa: { type: Number, min: 0, max: 10 },
     backlogCount: { type: Number, min: 0, default: 0 },
+    resumeUrl: { type: String, default: null },
+    resumePublicId: { type: String, default: null },
+    companyId: { type: Schema.Types.ObjectId, ref: "Company", default: null },
     refreshTokenHash: { type: String, select: false, default: null },
   },
   { timestamps: true }

@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback, type ChangeEvent, type FormEvent } from "react";
 import { Search, Plus, Pencil, Trash2, Users, Upload } from "lucide-react";
 import Modal from "../../components/ui/Modal";
+import ConfirmModal from "../../components/ui/ConfirmModal";
 import Badge from "../../components/ui/Badge";
 import { useToast } from "../../context/ToastContext";
 import { listUsers, createUser, updateUser, deleteUser, importStudentsCsv } from "../../services/api";
@@ -237,7 +238,7 @@ const UsersManagement = () => {
       <div className="flex flex-col sm:flex-row sm:items-center gap-4 justify-between">
         <div>
           <h1 className="text-2xl font-manrope font-bold text-gray-900">User Management</h1>
-          <p className="text-gray-500 mt-1">Manage all users — students, TPOs, and coordinators.</p>
+          <p className="text-gray-500 mt-1">Manage all users — students, TPOs, and HR accounts.</p>
         </div>
         <div className="flex items-center gap-3">
           <input type="file" accept=".csv" className="hidden" ref={fileInputRef} onChange={handleFileUpload} />
@@ -254,11 +255,11 @@ const UsersManagement = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {(["student", "tpo", "coordinator", "admin"] as Role[]).map((role) => (
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+        {(["student", "tpo", "hr"] as Role[]).map((role) => (
           <div key={role} className="card !p-4 text-center">
             <div className="text-2xl font-bold text-gray-900">{users.filter((u) => u.role === role).length}</div>
-            <div className="text-sm text-gray-500 capitalize mt-0.5">{role}s</div>
+            <div className="text-sm text-gray-500 capitalize mt-0.5">{role === "hr" ? "HR" : role}s</div>
           </div>
         ))}
       </div>
@@ -281,8 +282,7 @@ const UsersManagement = () => {
           <option value="all">All Roles</option>
           <option value="student">Students</option>
           <option value="tpo">TPO</option>
-          <option value="coordinator">Coordinators</option>
-          <option value="admin">Admin</option>
+          <option value="hr">HR</option>
         </select>
       </div>
 
@@ -388,8 +388,7 @@ const UsersManagement = () => {
               options={[
                 { value: "student", label: "Student" },
                 { value: "tpo", label: "TPO" },
-                { value: "coordinator", label: "Coordinator" },
-                { value: "admin", label: "Admin" },
+                { value: "hr", label: "HR" },
               ]}
             />
           </div>
@@ -424,25 +423,16 @@ const UsersManagement = () => {
         </form>
       </Modal>
 
-      <Modal open={!!deleteConfirm} onClose={() => setDeleteConfirm(null)} title="Delete User" size="sm">
-        <p className="text-gray-600 text-sm mb-6">Are you sure you want to delete this user? This action cannot be undone.</p>
-        <div className="flex flex-col-reverse sm:flex-row justify-end gap-3">
-          <button
-            type="button"
-            onClick={() => setDeleteConfirm(null)}
-            className="px-4 py-2 text-sm font-medium text-gray-700 rounded-lg border border-gray-300 hover:bg-gray-50 w-full sm:w-auto"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={() => deleteConfirm && handleDelete(deleteConfirm)}
-            className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 w-full sm:w-auto"
-          >
-            Delete
-          </button>
-        </div>
-      </Modal>
+      <ConfirmModal
+        open={!!deleteConfirm}
+        onClose={() => setDeleteConfirm(null)}
+        onConfirm={() => deleteConfirm && handleDelete(deleteConfirm)}
+        title="Delete User"
+        message="Are you sure you want to delete this user?"
+        subMessage="This action cannot be undone."
+        confirmLabel="Delete User"
+        danger
+      />
     </div>
   );
 };

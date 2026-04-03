@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { Search, Briefcase, CalendarDays, CheckCircle, Loader2 } from "lucide-react";
+import { Search, Briefcase, CalendarDays, CheckCircle, Loader2, AlertTriangle } from "lucide-react";
 import Badge from "../../components/ui/Badge";
 import { useAuth } from "../../context/AuthContext";
 import { useToast } from "../../context/ToastContext";
 import { listDrives, listMyApplications, applyToDrive } from "../../services/api";
+import { Link } from "react-router-dom";
 
 interface DriveRow {
   id: string;
@@ -104,10 +105,13 @@ const DriveList = () => {
         <p className="text-gray-500 mt-1">Browse open drives and apply when you are eligible.</p>
       </div>
 
+      {/* Profile summary card */}
       <div className="card bg-primary/5 border-primary/10 !p-4 flex flex-wrap gap-6">
         <div>
           <span className="text-xs text-gray-500 block mb-0.5 font-medium">Your CGPA</span>
-          <span className="font-bold text-gray-900">{user?.cgpa ?? "—"}</span>
+          <span className={`font-bold ${user?.cgpa == null ? "text-red-500" : "text-gray-900"}`}>
+            {user?.cgpa ?? "Not set"}
+          </span>
         </div>
         <div>
           <span className="text-xs text-gray-500 block mb-0.5 font-medium">Backlogs</span>
@@ -115,13 +119,43 @@ const DriveList = () => {
         </div>
         <div>
           <span className="text-xs text-gray-500 block mb-0.5 font-medium">Department</span>
-          <span className="font-bold text-gray-900">{user?.department ?? "—"}</span>
+          <span className={`font-bold ${!user?.department ? "text-red-500" : "text-gray-900"}`}>
+            {user?.department ?? "Not set"}
+          </span>
         </div>
         <div>
           <span className="text-xs text-gray-500 block mb-0.5 font-medium">Section</span>
-          <span className="font-bold text-gray-900">{user?.section ?? "—"}</span>
+          <span className={`font-bold ${!user?.section ? "text-red-500" : "text-gray-900"}`}>
+            {user?.section ?? "Not set"}
+          </span>
+        </div>
+        <div>
+          <span className="text-xs text-gray-500 block mb-0.5 font-medium">Resume</span>
+          <span className={`font-bold ${!user?.hasResume ? "text-red-500" : "text-green-600"}`}>
+            {user?.hasResume ? "Uploaded" : "Not uploaded"}
+          </span>
         </div>
       </div>
+
+      {/* Profile incomplete warning */}
+      {(!user?.hasResume || !user?.department || !user?.section || user?.cgpa == null) && (
+        <div className="flex items-start gap-3 p-4 rounded-xl border border-amber-200 bg-amber-50 text-sm text-amber-800">
+          <AlertTriangle size={18} className="shrink-0 mt-0.5 text-amber-500" />
+          <div>
+            <p className="font-semibold mb-1">Your profile is incomplete — you cannot apply to drives yet.</p>
+            <ul className="space-y-0.5 text-amber-700 text-xs">
+              {user?.cgpa == null && <li>• CGPA is not set</li>}
+              {!user?.department && <li>• Department is not set</li>}
+              {!user?.section && <li>• Section is not set</li>}
+              {!user?.hasResume && (
+                <li>• Resume not uploaded —{" "}
+                  <Link to="/student" className="underline font-medium">upload from your dashboard</Link>
+                </li>
+              )}
+            </ul>
+          </div>
+        </div>
+      )}
 
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">

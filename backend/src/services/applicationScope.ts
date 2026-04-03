@@ -1,9 +1,8 @@
 import type { Request } from "express";
 import mongoose from "mongoose";
-import { User } from "../models/User.js";
-import { escapeRegex } from "../utils/escapeRegex.js";
+import { Drive } from "../models/Drive.js";
 
-/** Same visibility rules as list applications (for exports and JSON list). */
+/** Returns a MongoDB filter for applications based on the user's role. */
 export async function applicationFilterForRole(
   req: Request
 ): Promise<Record<string, unknown>> {
@@ -15,17 +14,22 @@ export async function applicationFilterForRole(
     filter.drive = driveId;
   }
 
-  if (role === "coordinator") {
-    const dept = req.user!.department?.trim();
-    if (!dept) {
-      return { ...filter, student: { $in: [] } };
+  if (role === "hr") {
+    // HR sees only applications for drives belonging to their company
+    const companyId = req.user!.companyId;
+    if (!companyId) return { ...filter, drive: { $in: [] } };
+    const drives = await Drive.find({ company: companyId }).select("_id");
+    const driveIds = drives.map((d) => d._id);
+    // If a specific driveId was requested, intersect
+    if (filter.drive) {
+      const requestedId = filter.drive as string;
+      const allowed = driveIds.map((d) => d.toString());
+      if (!allowed.includes(requestedId)) {
+        return { drive: { $in: [] } }; // no access
+      }
+    } else {
+      filter.drive = { $in: driveIds };
     }
-    const students = await User.find({
-      role: "student",
-      department: new RegExp(`^${escapeRegex(dept)}$`, "i"),
-    }).select("_id");
-    const ids = students.map((s) => s._id);
-    filter.student = { $in: ids };
   }
 
   if (role === "student") {

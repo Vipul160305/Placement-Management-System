@@ -15,12 +15,12 @@ applicationRouter.get(
 
 applicationRouter.get(
   "/",
-  authorize("admin", "tpo", "coordinator", "student"),
+  authorize("admin", "tpo", "hr", "student"),
   asyncHandler(application.listApplications)
 );
 
 applicationRouter.patch(
   "/:id/status",
-  authorize("admin", "tpo", "coordinator", "student"),
+  authorize("admin", "tpo", "hr", "student"),
   asyncHandler(application.updateApplicationStatus)
 );

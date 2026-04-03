@@ -12,46 +12,47 @@ export function evaluateEligibility(
 ): EligibilityResult {
   const reasons: string[] = [];
 
+  // --- Drive state ---
   if (drive.status !== "open") {
     reasons.push("Drive is not open for applications.");
   }
 
+  // --- Required profile fields ---
+  if (!student.department?.trim()) {
+    reasons.push("Your department is not set on your profile.");
+  }
+  if (!student.section?.trim()) {
+    reasons.push("Your section is not set on your profile.");
+  }
+  if (!student.branch?.trim() && !student.department?.trim()) {
+    reasons.push("Your branch is not set on your profile.");
+  }
+
+  // --- Resume ---
+  if (!student.resumeUrl) {
+    reasons.push("You have not uploaded a resume. Please upload your resume before applying.");
+  }
+
+  // --- Branch eligibility ---
   const branch = (student.branch ?? student.department ?? "").trim();
   if (
     drive.allowedBranches.length > 0 &&
     !drive.allowedBranches.map((b) => b.toLowerCase()).includes(branch.toLowerCase())
   ) {
-    reasons.push("Branch is not allowed for this drive.");
+    reasons.push(`Your branch (${branch || "not set"}) is not eligible for this drive.`);
   }
 
+  // --- CGPA ---
   if (student.cgpa === undefined || student.cgpa === null) {
-    reasons.push("Student CGPA is not set.");
+    reasons.push("Your CGPA is not set on your profile.");
   } else if (student.cgpa < drive.minCgpa) {
-    reasons.push(`CGPA below minimum (${drive.minCgpa}).`);
+    reasons.push(`CGPA ${student.cgpa} is below the minimum required (${drive.minCgpa}).`);
   }
 
+  // --- Backlogs ---
   const backlogs = student.backlogCount ?? 0;
   if (backlogs > drive.maxBacklogs) {
-    reasons.push(`Backlog count exceeds maximum (${drive.maxBacklogs}).`);
-  }
-
-  if (drive.sectionAssignments.length === 0) {
-    reasons.push("Drive has no section assignments yet.");
-  }
-
-  const dept = (student.department ?? "").trim();
-  const section = (student.section ?? "").trim();
-  if (!dept || !section) {
-    reasons.push("Student department or section is not set.");
-  } else {
-    const match = drive.sectionAssignments.some(
-      (a) =>
-        a.department.trim().toLowerCase() === dept.toLowerCase() &&
-        a.sections.some((s) => s.trim().toLowerCase() === section.toLowerCase())
-    );
-    if (!match) {
-      reasons.push("Your section is not assigned to this drive.");
-    }
+    reasons.push(`You have ${backlogs} backlog(s); maximum allowed is ${drive.maxBacklogs}.`);
   }
 
   return { eligible: reasons.length === 0, reasons };

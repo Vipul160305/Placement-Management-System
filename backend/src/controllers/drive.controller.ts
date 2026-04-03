@@ -3,12 +3,12 @@ import mongoose from "mongoose";
 import { Drive } from "../models/Drive.js";
 import { User } from "../models/User.js";
 import { Application } from "../models/Application.js";
+import { AuditLog } from "../models/AuditLog.js";
 import { sendSuccess } from "../utils/apiResponse.js";
 import { AppError } from "../utils/AppError.js";
 import { recordAudit } from "../services/auditService.js";
 import { evaluateEligibility } from "../services/eligibilityService.js";
 import type { ISectionAssignment } from "../models/Drive.js";
-import { escapeRegex } from "../utils/escapeRegex.js";
 
 function serializeDrive(d: InstanceType<typeof Drive>) {
   return {
@@ -41,22 +41,16 @@ export async function listDrives(req: Request, res: Response): Promise<void> {
 
   if (role === "student") {
     query = { ...query, status: "open" };
-  } else if (role === "coordinator") {
-    const dept = req.user!.department?.trim();
-    if (!dept) {
+  } else if (role === "hr") {
+    // HR sees only drives for their company
+    const companyId = req.user!.companyId;
+    if (!companyId) {
       sendSuccess(res, 200, { drives: [] });
       return;
     }
-    const deptRe = new RegExp(`^${escapeRegex(dept)}$`, "i");
-    const coordClause: Record<string, unknown> = {
-      $or: [
-        { sectionAssignments: { $size: 0 } },
-        { "sectionAssignments.department": deptRe },
-      ],
-    };
+    const hrClause: Record<string, unknown> = { company: new mongoose.Types.ObjectId(companyId) };
     const keys = Object.keys(query);
-    query =
-      keys.length === 0 ? coordClause : { $and: [query, coordClause] };
+    query = keys.length === 0 ? hrClause : { $and: [query, hrClause] };
   }
 
   const drives = await Drive.find(query)
@@ -237,27 +231,33 @@ export async function deleteDrive(req: Request, res: Response): Promise<void> {
   if (!mongoose.Types.ObjectId.isValid(id)) {
     throw new AppError(400, "Invalid drive id", "VALIDATION_ERROR");
   }
-  const appCount = await Application.countDocuments({ drive: id });
-  if (appCount > 0) {
-    throw new AppError(
-      400,
-      "Cannot delete drive with existing applications",
-      "VALIDATION_ERROR"
-    );
-  }
-  const drive = await Drive.findByIdAndDelete(id);
+
+  const drive = await Drive.findById(id);
   if (!drive) {
     throw new AppError(404, "Drive not found", "NOT_FOUND");
   }
+
+  // Cascade delete — applications and audit logs for this drive
+  const [appResult] = await Promise.all([
+    Application.deleteMany({ drive: id }),
+    AuditLog.deleteMany({ entityType: "Drive", entityId: id }),
+    AuditLog.deleteMany({ entityType: "Application", metadata: { driveId: id } }),
+  ]);
+
+  await Drive.findByIdAndDelete(id);
 
   await recordAudit({
     actorId: req.user!.id,
     action: "drive.delete",
     entityType: "Drive",
     entityId: id,
+    metadata: { title: drive.title, applicationsDeleted: appResult.deletedCount },
   });
 
-  sendSuccess(res, 200, { deleted: true });
+  sendSuccess(res, 200, {
+    deleted: true,
+    applicationsDeleted: appResult.deletedCount,
+  });
 }
 
 export async function putAssignments(req: Request, res: Response): Promise<void> {
@@ -301,27 +301,7 @@ export async function putAssignments(req: Request, res: Response): Promise<void>
     normalized.push({ department, sections });
   }
 
-  const role = req.user!.role;
-  if (role === "coordinator") {
-    const myDept = req.user!.department?.trim().toLowerCase();
-    const invalid = normalized.some(
-      (a) => a.department.trim().toLowerCase() !== myDept
-    );
-    if (invalid || !myDept) {
-      throw new AppError(
-        403,
-        "Coordinators may only assign sections for their own department",
-        "FORBIDDEN"
-      );
-    }
-    const others = drive.sectionAssignments.filter(
-      (a) => a.department.trim().toLowerCase() !== myDept
-    );
-    drive.sectionAssignments = [...others, ...normalized];
-  } else {
-    drive.sectionAssignments = normalized;
-  }
-
+  drive.sectionAssignments = normalized;
   await drive.save();
 
   await recordAudit({

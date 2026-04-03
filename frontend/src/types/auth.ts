@@ -1,4 +1,4 @@
-export type Role = "admin" | "tpo" | "coordinator" | "student";
+export type Role = "tpo" | "hr" | "student";
 
 export interface User {
   id?: string;
@@ -8,8 +8,11 @@ export interface User {
   role: Role;
   department?: string;
   section?: string;
+  branch?: string;
   cgpa?: number;
   backlogCount?: number;
+  hasResume?: boolean;
+  companyId?: string | null;
 }
 
 export interface AuthContextValue {

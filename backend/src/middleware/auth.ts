@@ -21,7 +21,7 @@ export const authenticate = asyncHandler(async (req, _res, next) => {
   }
 
   const user = await User.findById(payload.sub).select(
-    "email role department section"
+    "email role department section companyId"
   );
   if (!user) {
     throw new AppError(401, "User not found", "UNAUTHORIZED");
@@ -33,6 +33,7 @@ export const authenticate = asyncHandler(async (req, _res, next) => {
     role: user.role,
     department: user.department,
     section: user.section,
+    companyId: user.companyId?.toString(),
   };
   next();
 });

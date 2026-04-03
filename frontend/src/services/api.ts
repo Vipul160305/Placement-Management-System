@@ -120,6 +120,10 @@ export async function listApplications(params: Record<string, string> = {}) {
   return apiGet(q ? `/api/applications?${q}` : "/api/applications");
 }
 
+export async function updateApplicationStatus(id: string, status: string) {
+  return apiPatch(`/api/applications/${id}/status`, { status });
+}
+
 export interface DepartmentStatRow {
   department: string;
   totalApplications?: number;
@@ -139,8 +143,31 @@ export interface TPOAnalyticsResult {
 }
 
 /* Analytics */
-export async function getTPOAnalytics(): Promise<TPOAnalyticsResult> {
-  const [overview, byDept] = await Promise.all([
+export interface DashboardStats {
+  totalStudents: number;
+  totalTPO: number;
+  totalHR: number;
+  openDrives: number;
+  totalDrives: number;
+  offeredCount: number;
+  totalApplications: number;
+  placementRate: number;
+  pastDrives: {
+    id: string;
+    title?: string;
+    company?: { name?: string };
+    jobRole?: string;
+    package?: string;
+    scheduledAt?: string;
+    updatedAt?: string;
+  }[];
+}
+
+export async function getDashboardStats(): Promise<DashboardStats> {
+  return apiGet<DashboardStats>("/api/stats/dashboard");
+}
+
+export async function getTPOAnalytics(): Promise<TPOAnalyticsResult> {  const [overview, byDept] = await Promise.all([
     apiGet<StatsOverview>("/api/stats/overview"),
     apiGet<{ departments?: DepartmentStatRow[] }>("/api/stats/by-department"),
   ]);
@@ -183,18 +210,20 @@ export async function downloadApplicationsExport(format = "csv") {
   return res.data as Blob;
 }
 
-/** No backend resume route yet — keeps UI working (plan out of scope). */
+/** Upload student resume (PDF) */
 export async function uploadStudentResume(formData: FormData) {
-  await new Promise((r) => setTimeout(r, 400));
-  const file = formData.get("resume");
-  const name =
-    file && typeof file === "object" && "name" in file && typeof (file as File).name === "string"
-      ? (file as File).name
-      : "resume.pdf";
-  return {
-    status: "success",
-    message: "Resume recorded locally (backend upload not configured)",
-    filename: name,
-    uploadDate: new Date().toISOString(),
-  };
+  return apiPost("/api/users/me/resume", formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+}
+
+/** Get resume download URL for current student */
+export function getResumeUrl() {
+  return "/api/users/me/resume";
+}
+
+// Resume download for staff (tpo, hr, admin)
+export async function downloadStudentResume(studentId: string) {
+  const { httpClient } = await import("./httpClient");
+  return httpClient.get(`/api/users/${studentId}/resume`, { responseType: "blob" });
 }

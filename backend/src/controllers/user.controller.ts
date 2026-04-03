@@ -1,10 +1,15 @@
 import type { Request, Response } from "express";
+import path from "path";
+import fs from "fs";
+import { Readable } from "stream";
+import mongoose from "mongoose";
 import { User } from "../models/User.js";
 import { sendSuccess } from "../utils/apiResponse.js";
 import { AppError } from "../utils/AppError.js";
 import { hashPassword } from "../utils/password.js";
 import { parseRole } from "../middleware/auth.js";
 import { recordAudit } from "../services/auditService.js";
+import { cloudinary, RESUME_FOLDER } from "../config/cloudinary.js";
 
 function publicUser(u: InstanceType<typeof User>) {
   return {
@@ -17,6 +22,8 @@ function publicUser(u: InstanceType<typeof User>) {
     branch: u.branch,
     cgpa: u.cgpa,
     backlogCount: u.backlogCount,
+    hasResume: !!(u.resumeUrl),
+    companyId: u.companyId?.toString() || null,
     createdAt: u.createdAt,
     updatedAt: u.updatedAt,
   };
@@ -147,7 +154,7 @@ export async function updateUser(req: Request, res: Response): Promise<void> {
 export async function deleteUser(req: Request, res: Response): Promise<void> {
   const { id } = req.params;
   if (id === req.user?.id) {
-    throw new AppError(400, "Cannot delete own account here", "VALIDATION_ERROR");
+    throw new AppError(400, "Cannot delete your own account", "VALIDATION_ERROR");
   }
   const user = await User.findByIdAndDelete(id);
   if (!user) {
@@ -163,4 +170,89 @@ export async function deleteUser(req: Request, res: Response): Promise<void> {
   });
 
   sendSuccess(res, 200, { deleted: true });
+}
+
+/** Upload a helper that streams a buffer to Cloudinary */
+function uploadToCloudinary(
+  buffer: Buffer,
+  publicId: string
+): Promise<{ secure_url: string; public_id: string }> {
+  return new Promise((resolve, reject) => {
+    const uploadStream = cloudinary.uploader.upload_stream(
+      {
+        folder: RESUME_FOLDER,
+        public_id: publicId,
+        resource_type: "raw", // PDF is a raw file, not an image
+        overwrite: true,
+        format: "pdf",
+      },
+      (error, result) => {
+        if (error || !result) return reject(error ?? new Error("Cloudinary upload failed"));
+        resolve({ secure_url: result.secure_url, public_id: result.public_id });
+      }
+    );
+    Readable.from(buffer).pipe(uploadStream);
+  });
+}
+
+export async function uploadResume(req: Request, res: Response): Promise<void> {
+  if (!req.file?.buffer) {
+    throw new AppError(400, "PDF file required (field name: resume)", "VALIDATION_ERROR");
+  }
+
+  const userId = req.user!.id;
+  const user = await User.findById(userId);
+  if (!user) throw new AppError(404, "User not found", "NOT_FOUND");
+
+  // Delete old resume from Cloudinary if exists
+  if (user.resumePublicId) {
+    await cloudinary.uploader.destroy(user.resumePublicId, { resource_type: "raw" }).catch(() => {});
+  }
+
+  const publicId = `resume_${userId}`;
+  const { secure_url, public_id } = await uploadToCloudinary(req.file.buffer, publicId);
+
+  user.resumeUrl = secure_url;
+  user.resumePublicId = public_id;
+  await user.save();
+
+  await recordAudit({
+    actorId: userId,
+    action: "user.resume.upload",
+    entityType: "User",
+    entityId: userId,
+    metadata: { filename: req.file.originalname },
+  });
+
+  sendSuccess(res, 200, {
+    message: "Resume uploaded successfully",
+    resumeUrl: secure_url,
+    uploadDate: new Date().toISOString(),
+  });
+}
+
+export async function getResume(req: Request, res: Response): Promise<void> {
+  const userId = req.user!.id;
+  const user = await User.findById(userId);
+  if (!user) throw new AppError(404, "User not found", "NOT_FOUND");
+  if (!user.resumeUrl) throw new AppError(404, "No resume uploaded yet", "NOT_FOUND");
+
+  // Redirect to Cloudinary URL
+  res.redirect(user.resumeUrl);
+}
+
+/** Staff (tpo, hr) view a specific student's resume */
+export async function getStudentResume(req: Request, res: Response): Promise<void> {
+  const { id } = req.params;
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new AppError(400, "Invalid user id", "VALIDATION_ERROR");
+  }
+  const student = await User.findById(id);
+  if (!student || student.role !== "student") {
+    throw new AppError(404, "Student not found", "NOT_FOUND");
+  }
+  if (!student.resumeUrl) {
+    throw new AppError(404, "Student has not uploaded a resume", "NOT_FOUND");
+  }
+  res.redirect(student.resumeUrl);
 }

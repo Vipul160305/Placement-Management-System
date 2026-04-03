@@ -1,11 +1,13 @@
 import { useState, useRef, useEffect, useCallback, type ChangeEvent } from "react";
-import { Briefcase, Clock, CheckCircle, UploadCloud, Loader2, FileCheck } from "lucide-react";
-import { uploadStudentResume, listMyApplications } from "../../services/api";
+import { Briefcase, Clock, CheckCircle, UploadCloud, Loader2, FileCheck, ExternalLink } from "lucide-react";
+import { uploadStudentResume, getResumeUrl, listMyApplications } from "../../services/api";
 import { useToast } from "../../context/ToastContext";
+import { useAuth } from "../../context/AuthContext";
 import { Link } from "react-router-dom";
 
 const StudentDashboard = () => {
-  const [resume, setResume] = useState<{ name: string; date: string } | null>(null);
+  const { user } = useAuth();
+  const [hasResume, setHasResume] = useState<boolean>(!!user?.hasResume);
   const [uploading, setUploading] = useState(false);
   const [stats, setStats] = useState({ total: 0, inProgress: 0, offers: 0 });
   const [statsLoading, setStatsLoading] = useState(true);
@@ -31,6 +33,11 @@ const StudentDashboard = () => {
     loadStats();
   }, [loadStats]);
 
+  // Sync hasResume from user context
+  useEffect(() => {
+    setHasResume(!!user?.hasResume);
+  }, [user?.hasResume]);
+
   const handleFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -41,21 +48,34 @@ const StudentDashboard = () => {
     }
 
     setUploading(true);
-
     try {
       const formData = new FormData();
       formData.append("resume", file);
-
-      const response = await uploadStudentResume(formData);
-
-      setResume({ name: response.filename, date: new Date(response.uploadDate).toLocaleDateString() });
-      addToast(response.message, "success");
+      await uploadStudentResume(formData);
+      setHasResume(true);
+      addToast("Resume uploaded successfully", "success");
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to upload resume";
       addToast(message, "error");
     } finally {
       setUploading(false);
       e.target.value = "";
+    }
+  };
+
+  const handleViewResume = async () => {
+    try {
+      // Backend redirects to Cloudinary URL — open via authenticated fetch to follow redirect
+      const { httpClient } = await import("../../services/httpClient");
+      const res = await httpClient.get(getResumeUrl(), {
+        responseType: "blob",
+        maxRedirects: 5,
+      });
+      const url = URL.createObjectURL(res.data as Blob);
+      window.open(url, "_blank", "noopener,noreferrer");
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+    } catch {
+      addToast("Could not load resume", "error");
     }
   };
 
@@ -70,9 +90,9 @@ const StudentDashboard = () => {
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 flex flex-col md:flex-row items-center justify-between gap-6 border-l-4 border-l-primary">
         <div className="flex-1">
-          <h2 className="text-lg font-bold text-gray-900">Profile completeness: {resume ? "100%" : "85%"}</h2>
+          <h2 className="text-lg font-bold text-gray-900">Profile completeness: {hasResume ? "100%" : "85%"}</h2>
           <p className="text-sm text-gray-500 mt-1">
-            {resume
+            {hasResume
               ? "Your profile is fully complete and ready for applications."
               : "Upload your resume to reach 100% and improve your chances."}
           </p>
@@ -93,14 +113,15 @@ const StudentDashboard = () => {
               <Loader2 size={18} className="animate-spin text-primary" />
               <span>Uploading...</span>
             </div>
-          ) : resume ? (
-            <div className="flex items-center gap-4">
-              <div className="flex flex-col items-end">
-                <span className="flex items-center gap-1.5 text-sm font-semibold text-green-600">
-                  <FileCheck size={16} /> {resume.name}
-                </span>
-                <span className="text-xs text-gray-400">Uploaded {resume.date}</span>
-              </div>
+          ) : hasResume ? (
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={handleViewResume}
+                className="flex items-center gap-1.5 text-sm font-semibold text-green-600 hover:underline"
+              >
+                <FileCheck size={16} /> View resume <ExternalLink size={12} />
+              </button>
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}

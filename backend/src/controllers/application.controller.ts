@@ -46,7 +46,7 @@ export async function listMyApplications(
 
 export async function listApplications(req: Request, res: Response): Promise<void> {
   const role = req.user!.role;
-  if (role === "coordinator" && !req.user!.department?.trim()) {
+  if (role === "hr" && !req.user!.companyId) {
     sendSuccess(res, 200, { applications: [] });
     return;
   }
@@ -102,21 +102,19 @@ export async function updateApplicationStatus(
     if (nextStatus !== "withdrawn") {
       throw new AppError(403, "Students may only withdraw", "FORBIDDEN");
     }
-  } else if (role === "coordinator") {
-    const stud = await User.findById(application.student).select("department");
-    const coordDept = req.user!.department?.trim().toLowerCase();
-    const studDept = (stud?.department ?? "").trim().toLowerCase();
-    if (!coordDept || !stud || studDept !== coordDept) {
-      throw new AppError(403, "Not your department", "FORBIDDEN");
+  } else if (role === "hr") {
+    // HR can only act on applications for their company's drives
+    const companyId = req.user!.companyId;
+    if (!companyId) throw new AppError(403, "No company assigned to this HR account", "FORBIDDEN");
+    const drive = await Drive.findById(application.drive).select("company");
+    if (!drive || drive.company.toString() !== companyId) {
+      throw new AppError(403, "This application is not for your company", "FORBIDDEN");
     }
-    if (!["shortlisted", "rejected"].includes(nextStatus)) {
-      throw new AppError(
-        403,
-        "Coordinator may only shortlist or reject",
-        "FORBIDDEN"
-      );
+    if (!["shortlisted", "rejected", "offered"].includes(nextStatus)) {
+      throw new AppError(403, "HR may only shortlist, offer, or reject", "FORBIDDEN");
     }
   }
+  // tpo and admin have no restrictions
 
   const from = application.status;
   if (!canTransition(from, nextStatus)) {

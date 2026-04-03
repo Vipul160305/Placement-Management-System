@@ -15,8 +15,7 @@ const variants: Record<string, string> = {
   ineligible: "bg-red-50 text-red-600 border-red-200",
   student: "bg-violet-50 text-violet-700 border-violet-200",
   tpo: "bg-cyan-50 text-cyan-700 border-cyan-200",
-  coordinator: "bg-indigo-50 text-indigo-700 border-indigo-200",
-  admin: "bg-orange-50 text-orange-700 border-orange-200",
+  hr: "bg-indigo-50 text-indigo-700 border-indigo-200",
 };
 
 const Badge = ({ variant, children }: { variant: string; children: ReactNode }) => (

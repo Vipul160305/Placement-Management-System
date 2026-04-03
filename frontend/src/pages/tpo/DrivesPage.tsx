@@ -1,20 +1,25 @@
-import { useState, useEffect, useCallback, type ChangeEvent, type FormEvent } from "react";
-import { Plus, CalendarDays, ChevronDown, ChevronUp } from "lucide-react";
+import { useState, useEffect, useCallback, useRef, type ChangeEvent, type FormEvent } from "react";
+import { Plus, CalendarDays, ChevronDown, ChevronUp, Pencil } from "lucide-react";
 import Modal from "../../components/ui/Modal";
+import ConfirmModal from "../../components/ui/ConfirmModal";
 import Badge from "../../components/ui/Badge";
 import { useToast } from "../../context/ToastContext";
 import { listDrives, listCompanies, createDrive, updateDrive, deleteDrive } from "../../services/api";
 
+const BRANCH_OPTIONS = ["CSE", "IT", "ECE", "EEE", "MECH", "CIVIL", "MBA", "MCA"];
+
 const BLANK = {
-  company: "",
+  companyId: "",
+  companyName: "",
   title: "",
   jobRole: "",
   package: "",
   scheduledAt: "",
   minCgpa: "7",
   maxBacklogs: "0",
-  allowedBranches: "",
+  allowedBranches: [] as string[],
   status: "open",
+  description: "",
 };
 
 type FormState = typeof BLANK;
@@ -35,7 +40,8 @@ interface DriveRow {
   minCgpa?: number;
   maxBacklogs?: number;
   allowedBranches?: string[];
-  company?: { name?: string } | string;
+  description?: string;
+  company?: { id?: string; name?: string } | string;
   sectionAssignments?: { department?: string; sections?: string[] }[];
 }
 
@@ -53,9 +59,16 @@ const DrivesPage = () => {
   const [companies, setCompanies] = useState<CompanyOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
+  const [editing, setEditing] = useState<DriveRow | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(BLANK);
+  const [companySuggestions, setCompanySuggestions] = useState<CompanyOption[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const companyInputRef = useRef<HTMLInputElement>(null);
+  const selectedCompanyRef = useRef<CompanyOption | null>(null);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [deleteTarget, setDeleteTarget] = useState<DriveRow | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const { addToast } = useToast();
 
   const load = useCallback(async () => {
@@ -63,7 +76,9 @@ const DrivesPage = () => {
     try {
       const [dRes, cRes] = await Promise.all([listDrives(), listCompanies()]);
       setAllDrives((dRes as { drives?: DriveRow[] }).drives || []);
-      setCompanies((cRes as { companies?: CompanyOption[] }).companies || []);
+      // Normalize _id → id since Mongoose returns _id by default
+      const rawCompanies = (cRes as { companies?: ({ id?: string; _id?: string; name: string })[] }).companies || [];
+      setCompanies(rawCompanies.map((c) => ({ id: c.id || c._id || "", name: c.name })));
     } catch (e) {
       const message = e instanceof Error ? e.message : "Failed to load drives";
       addToast(message, "error");
@@ -80,33 +95,100 @@ const DrivesPage = () => {
     statusFilter === "all" ? allDrives : allDrives.filter((d) => d.status === statusFilter);
 
   const openAdd = () => {
+    setEditing(null);
     setForm(BLANK);
+    setCompanySuggestions([]);
+    setShowSuggestions(false);
+    selectedCompanyRef.current = null;
     setModalOpen(true);
+  };
+
+  const openEdit = (drive: DriveRow) => {
+    setEditing(drive);
+    const companyId =
+      typeof drive.company === "object" && drive.company?.id
+        ? drive.company.id
+        : typeof drive.company === "string"
+        ? drive.company
+        : "";
+    const companyName =
+      typeof drive.company === "object" && drive.company?.name
+        ? drive.company.name
+        : "";
+    selectedCompanyRef.current = companyId && companyName ? { id: companyId, name: companyName } : null;
+    setForm({
+      companyId,
+      companyName,
+      title: drive.title || "",
+      jobRole: drive.jobRole || "",
+      package: drive.package || "",
+      scheduledAt: drive.scheduledAt ? drive.scheduledAt.slice(0, 10) : "",
+      minCgpa: String(drive.minCgpa ?? 7),
+      maxBacklogs: String(drive.maxBacklogs ?? 0),
+      allowedBranches: drive.allowedBranches || [],
+      status: drive.status || "draft",
+      description: drive.description || "",
+    });
+    setCompanySuggestions([]);
+    setShowSuggestions(false);
+    setModalOpen(true);
+  };
+
+  const handleCompanyInput = (e: ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    selectedCompanyRef.current = null;
+    setForm((p) => ({ ...p, companyName: val, companyId: "" }));
+    if (val.trim().length === 0) {
+      setCompanySuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+    const matches = companies.filter((c) =>
+      c.name.toLowerCase().includes(val.toLowerCase())
+    );
+    setCompanySuggestions(matches);
+    setShowSuggestions(true);
+  };
+
+  const selectCompany = (c: CompanyOption) => {
+    selectedCompanyRef.current = c;
+    setForm((p) => ({ ...p, companyId: c.id, companyName: c.name }));
+    setShowSuggestions(false);
+    setCompanySuggestions([]);
   };
 
   const handleSave = async (e: FormEvent) => {
     e.preventDefault();
-    const branches = form.allowedBranches
-      .split(/[,;\n]/)
-      .map((s) => s.trim())
-      .filter(Boolean);
+    // Use ref as source of truth — immune to async state timing issues
+    const resolvedId = selectedCompanyRef.current?.id || form.companyId;
+    if (!resolvedId) {
+      addToast("Please select a valid company from the suggestions", "error");
+      return;
+    }
+    const body = {
+      company: resolvedId,
+      title: form.title.trim(),
+      jobRole: form.jobRole.trim(),
+      package: form.package.trim() || undefined,
+      scheduledAt: form.scheduledAt || undefined,
+      minCgpa: Number(form.minCgpa) || 0,
+      maxBacklogs: Number(form.maxBacklogs) || 0,
+      allowedBranches: form.allowedBranches,
+      status: form.status,
+      description: form.description.trim() || undefined,
+    };
     try {
-      await createDrive({
-        company: form.company,
-        title: form.title.trim(),
-        jobRole: form.jobRole.trim(),
-        package: form.package.trim() || undefined,
-        scheduledAt: form.scheduledAt || undefined,
-        minCgpa: Number(form.minCgpa) || 0,
-        maxBacklogs: Number(form.maxBacklogs) || 0,
-        allowedBranches: branches,
-        status: form.status,
-      });
-      addToast("Drive created", "success");
+      if (editing) {
+        await updateDrive(editing.id, body);
+        addToast("Drive updated", "success");
+      } else {
+        await createDrive(body);
+        addToast("Drive created", "success");
+      }
       setModalOpen(false);
       load();
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Could not create drive";
+      const message = err instanceof Error ? err.message : editing ? "Could not update drive" : "Could not create drive";
       addToast(message, "error");
     }
   };
@@ -122,15 +204,19 @@ const DrivesPage = () => {
     }
   };
 
-  const removeDrive = async (id: string) => {
-    if (!window.confirm("Delete this drive?")) return;
+  const removeDrive = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
     try {
-      await deleteDrive(id);
-      addToast("Drive deleted", "info");
+      const res = await deleteDrive(deleteTarget.id) as { deleted: boolean; applicationsDeleted?: number };
+      const appMsg = res.applicationsDeleted ? ` (${res.applicationsDeleted} application${res.applicationsDeleted !== 1 ? "s" : ""} removed)` : "";
+      addToast(`Drive deleted${appMsg}`, "info");
+      setDeleteTarget(null);
       load();
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Delete failed";
-      addToast(message, "error");
+      addToast(err instanceof Error ? err.message : "Delete failed", "error");
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -240,6 +326,13 @@ const DrivesPage = () => {
                       )}
                       <button
                         type="button"
+                        onClick={() => openEdit(drive)}
+                        className="text-xs px-3 py-1.5 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50 flex items-center gap-1"
+                      >
+                        <Pencil size={11} /> Edit
+                      </button>
+                      <button
+                        type="button"
                         onClick={() => setExpandedId(expandedId === drive.id ? null : drive.id)}
                         className="text-xs px-3 py-1.5 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50 flex items-center gap-1"
                       >
@@ -247,7 +340,7 @@ const DrivesPage = () => {
                       </button>
                       <button
                         type="button"
-                        onClick={() => removeDrive(drive.id)}
+                        onClick={() => setDeleteTarget(drive)}
                         className="text-xs px-3 py-1.5 rounded-lg border border-red-200 text-red-600 hover:bg-red-50"
                       >
                         Delete
@@ -269,6 +362,12 @@ const DrivesPage = () => {
                       <span className="text-gray-500 block text-xs font-medium mb-0.5">Allowed branches</span>
                       <span className="font-semibold">{(drive.allowedBranches || []).join(", ") || "Any (empty list)"}</span>
                     </div>
+                    {drive.description && (
+                      <div className="col-span-2 md:col-span-4">
+                        <span className="text-gray-500 block text-xs font-medium mb-0.5">Description</span>
+                        <span className="text-gray-700">{drive.description}</span>
+                      </div>
+                    )}
                     <div className="md:col-span-2">
                       <span className="text-gray-500 block text-xs font-medium mb-0.5">Section assignments</span>
                       <span className="font-semibold text-xs">
@@ -285,21 +384,46 @@ const DrivesPage = () => {
         </div>
       )}
 
-      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Create Placement Drive" size="xl">
-        <form onSubmit={handleSave} className="space-y-5">
+      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editing ? "Edit Placement Drive" : "Create Placement Drive"} size="xl">        <form onSubmit={handleSave} className="space-y-5">
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Company <span className="text-red-500">*</span>
               </label>
-              <select required value={form.company} onChange={f("company")} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary">
-                <option value="">Select company</option>
-                {companies.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
+              <div className="relative" ref={companyInputRef}>
+                <input
+                  value={form.companyName}
+                  onChange={handleCompanyInput}
+                  onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+                  onFocus={() => form.companyName && setShowSuggestions(companySuggestions.length > 0)}
+                  placeholder="Type company name…"
+                  autoComplete="off"
+                  className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary ${
+                    form.companyName && !form.companyId && !selectedCompanyRef.current ? "border-amber-400" : "border-gray-300"
+                  }`}
+                />
+                {showSuggestions && companySuggestions.length > 0 && (
+                  <ul className="absolute z-20 left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-48 overflow-y-auto">
+                    {companySuggestions.map((c) => (
+                      <li key={c.id}>
+                        <button
+                          type="button"
+                          onPointerDown={(e) => {
+                            e.preventDefault(); // prevents input blur before selection
+                            selectCompany(c);
+                          }}
+                          className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 first:rounded-t-xl last:rounded-b-xl"
+                        >
+                          {c.name}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {form.companyName && !form.companyId && !selectedCompanyRef.current && (
+                  <p className="text-xs text-amber-600 mt-1">Select a company from the list</p>
+                )}
+              </div>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Initial status</label>
@@ -357,12 +481,40 @@ const DrivesPage = () => {
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Allowed branches (comma-separated)</label>
-            <input
-              value={form.allowedBranches}
-              onChange={f("allowedBranches")}
-              placeholder="CSE, ECE, IT"
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+            <label className="block text-sm font-medium text-gray-700 mb-2">Allowed branches <span className="text-xs text-gray-400">(leave all unchecked = any branch)</span></label>
+            <div className="flex flex-wrap gap-2">
+              {BRANCH_OPTIONS.map((branch) => {
+                const checked = form.allowedBranches.includes(branch);
+                return (
+                  <button
+                    key={branch}
+                    type="button"
+                    onClick={() =>
+                      setForm((p) => ({
+                        ...p,
+                        allowedBranches: checked
+                          ? p.allowedBranches.filter((b) => b !== branch)
+                          : [...p.allowedBranches, branch],
+                      }))
+                    }
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
+                      checked ? "bg-primary text-white border-primary" : "bg-white text-gray-600 border-gray-300 hover:border-primary"
+                    }`}
+                  >
+                    {branch}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+            <textarea
+              value={form.description}
+              onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
+              rows={3}
+              placeholder="Job description, requirements, process details…"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary resize-none"
             />
           </div>
           <div className="flex justify-end gap-3 pt-2">
@@ -370,11 +522,23 @@ const DrivesPage = () => {
               Cancel
             </button>
             <button type="submit" className="btn-primary">
-              Create Drive
+              {editing ? "Save changes" : "Create Drive"}
             </button>
           </div>
         </form>
       </Modal>
+
+      <ConfirmModal
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={removeDrive}
+        title="Delete Drive"
+        message={`Delete "${deleteTarget?.title || "this drive"}"?`}
+        subMessage="All student applications for this drive will also be permanently deleted. This cannot be undone."
+        confirmLabel="Delete Drive"
+        danger
+        loading={deleting}
+      />
     </div>
   );
 };
