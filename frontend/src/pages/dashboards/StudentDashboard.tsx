@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect, useCallback, type ChangeEvent } from "react";
 import { Briefcase, Clock, CheckCircle, UploadCloud, Loader2, FileCheck, ExternalLink } from "lucide-react";
-import { uploadStudentResume, getResumeUrl, listMyApplications } from "../../services/api";
-import { useToast } from "../../context/ToastContext";
+import { uploadStudentResume, getResumeUrl, listMyApplications } from "../../services/api";import { useToast } from "../../context/ToastContext";
 import { useAuth } from "../../context/AuthContext";
 import { Link } from "react-router-dom";
 
@@ -65,15 +64,8 @@ const StudentDashboard = () => {
 
   const handleViewResume = async () => {
     try {
-      // Backend redirects to Cloudinary URL — open via authenticated fetch to follow redirect
-      const { httpClient } = await import("../../services/httpClient");
-      const res = await httpClient.get(getResumeUrl(), {
-        responseType: "blob",
-        maxRedirects: 5,
-      });
-      const url = URL.createObjectURL(res.data as Blob);
+      const url = await getResumeUrl();
       window.open(url, "_blank", "noopener,noreferrer");
-      setTimeout(() => URL.revokeObjectURL(url), 10000);
     } catch {
       addToast("Could not load resume", "error");
     }

@@ -3,7 +3,7 @@ import { Search, Loader2, Users, ChevronDown, FileText } from "lucide-react";
 import Badge from "../../components/ui/Badge";
 import { useToast } from "../../context/ToastContext";
 import { useAuth } from "../../context/AuthContext";
-import { listApplications, updateApplicationStatus, downloadStudentResume } from "../../services/api";
+import { listApplications, updateApplicationStatus, getStudentResumeUrl } from "../../services/api";
 import ConfirmModal from "../../components/ui/ConfirmModal";
 
 type AppStatus = "applied" | "shortlisted" | "offered" | "rejected" | "withdrawn";
@@ -146,14 +146,8 @@ const ApplicationsPage = () => {
 
   const handleViewResume = async (studentId: string) => {
     try {
-      const { httpClient } = await import("../../services/httpClient");
-      const res = await httpClient.get(`/api/users/${studentId}/resume`, {
-        responseType: "blob",
-        maxRedirects: 5,
-      });
-      const url = URL.createObjectURL(res.data as Blob);
+      const url = await getStudentResumeUrl(studentId);
       window.open(url, "_blank", "noopener,noreferrer");
-      setTimeout(() => URL.revokeObjectURL(url), 10000);
     } catch {
       addToast("No resume uploaded by this student", "error");
     }

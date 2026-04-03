@@ -236,9 +236,7 @@ export async function getResume(req: Request, res: Response): Promise<void> {
   const user = await User.findById(userId);
   if (!user) throw new AppError(404, "User not found", "NOT_FOUND");
   if (!user.resumeUrl) throw new AppError(404, "No resume uploaded yet", "NOT_FOUND");
-
-  // Redirect to Cloudinary URL
-  res.redirect(user.resumeUrl);
+  sendSuccess(res, 200, { resumeUrl: user.resumeUrl });
 }
 
 /** Staff (tpo, hr) view a specific student's resume */
@@ -254,5 +252,5 @@ export async function getStudentResume(req: Request, res: Response): Promise<voi
   if (!student.resumeUrl) {
     throw new AppError(404, "Student has not uploaded a resume", "NOT_FOUND");
   }
-  res.redirect(student.resumeUrl);
+  sendSuccess(res, 200, { resumeUrl: student.resumeUrl });
 }

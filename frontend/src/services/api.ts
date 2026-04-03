@@ -193,7 +193,22 @@ export async function getTPOAnalytics(): Promise<TPOAnalyticsResult> {  const [o
   };
 }
 
-/* Staff export: CSV / XLSX blob */
+/* Profile edit requests */
+export async function submitProfileEditRequest(changes: object) {
+  return apiPost("/api/profile/edit-requests", changes);
+}
+
+export async function getMyProfileEditRequest() {
+  return apiGet("/api/profile/edit-requests/me");
+}
+
+export async function listProfileEditRequests(status = "pending") {
+  return apiGet(`/api/profile/edit-requests?status=${status}`);
+}
+
+export async function reviewProfileEditRequest(id: string, action: "approve" | "reject", reviewNote?: string) {
+  return apiPatch(`/api/profile/edit-requests/${id}/review`, { action, reviewNote });
+}
 export async function downloadApplicationsExport(format = "csv") {
   const res = await httpClient.get(`/api/exports/applications?format=${format}`, {
     responseType: "blob",
@@ -217,13 +232,14 @@ export async function uploadStudentResume(formData: FormData) {
   });
 }
 
-/** Get resume download URL for current student */
-export function getResumeUrl() {
-  return "/api/users/me/resume";
+/** Get resume URL for current student — returns the Cloudinary URL */
+export async function getResumeUrl(): Promise<string> {
+  const res = (await apiGet<{ resumeUrl: string }>("/api/users/me/resume"));
+  return res.resumeUrl;
 }
 
-// Resume download for staff (tpo, hr, admin)
-export async function downloadStudentResume(studentId: string) {
-  const { httpClient } = await import("./httpClient");
-  return httpClient.get(`/api/users/${studentId}/resume`, { responseType: "blob" });
+/** Staff: get a student's resume URL */
+export async function getStudentResumeUrl(studentId: string): Promise<string> {
+  const res = (await apiGet<{ resumeUrl: string }>(`/api/users/${studentId}/resume`));
+  return res.resumeUrl;
 }

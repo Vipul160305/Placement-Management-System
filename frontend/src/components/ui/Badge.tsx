@@ -5,6 +5,8 @@ const variants: Record<string, string> = {
   shortlisted: "bg-amber-50 text-amber-700 border-amber-200",
   offered: "bg-green-50 text-green-700 border-green-200",
   rejected: "bg-red-50 text-red-700 border-red-200",
+  pending: "bg-amber-50 text-amber-700 border-amber-200",
+  approved: "bg-green-50 text-green-700 border-green-200",
   open: "bg-green-50 text-green-700 border-green-200",
   draft: "bg-slate-50 text-slate-600 border-slate-200",
   closed: "bg-gray-100 text-gray-500 border-gray-200",

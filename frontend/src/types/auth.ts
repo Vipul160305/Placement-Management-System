@@ -19,6 +19,7 @@ export interface AuthContextValue {
   user: User | null;
   login: (credentials: { email: string; password: string }) => Promise<User>;
   logout: () => Promise<void>;
+  refreshUser: () => Promise<void>;
   isAuthenticated: boolean;
   loading: boolean;
 }

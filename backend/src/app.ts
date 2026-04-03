@@ -11,6 +11,7 @@ import { applicationRouter } from "./routes/applicationRoutes.js";
 import { importRouter } from "./routes/import.routes.js";
 import { exportRouter } from "./routes/export.routes.js";
 import { statsRouter } from "./routes/stats.routes.js";
+import { profileRouter } from "./routes/profile.routes.js";
 
 export function createApp() {
   const app = express();
@@ -35,6 +36,7 @@ export function createApp() {
   app.use("/api/imports", importRouter);
   app.use("/api/exports", exportRouter);
   app.use("/api/stats", statsRouter);
+  app.use("/api/profile", profileRouter);
 
   app.use((_req, res) => {
     res.status(404).json({

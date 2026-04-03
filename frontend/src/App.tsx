@@ -16,6 +16,7 @@ import CompaniesPage from "./pages/tpo/CompaniesPage";
 import DrivesPage from "./pages/tpo/DrivesPage";
 import Analytics from "./pages/tpo/Analytics";
 import ApplicationsPage from "./pages/tpo/ApplicationsPage";
+import ProfileRequests from "./pages/tpo/ProfileRequests";
 
 // HR Pages
 import HRDashboard from "./pages/hr/HRDashboard";
@@ -23,6 +24,7 @@ import HRDashboard from "./pages/hr/HRDashboard";
 // Student Pages
 import DriveList from "./pages/student/DriveList";
 import MyApplications from "./pages/student/MyApplications";
+import StudentProfile from "./pages/student/StudentProfile";
 
 const ProtectedRoute = ({
   children,
@@ -85,6 +87,7 @@ const AppRoutes = () => (
         <Route path="/tpo/applications" element={<PR roles={["tpo"]}><ApplicationsPage /></PR>} />
         <Route path="/tpo/stats" element={<PR roles={["tpo"]}><Analytics /></PR>} />
         <Route path="/tpo/users" element={<PR roles={["tpo"]}><UsersManagement /></PR>} />
+        <Route path="/tpo/profile-requests" element={<PR roles={["tpo"]}><ProfileRequests /></PR>} />
 
         {/* Legacy admin routes — redirect to tpo equivalents */}
         <Route path="/admin" element={<Navigate to="/tpo" replace />} />
@@ -104,6 +107,7 @@ const AppRoutes = () => (
         <Route path="/student" element={<PR roles={["student"]}><StudentDashboard /></PR>} />
         <Route path="/student/drives" element={<PR roles={["student"]}><DriveList /></PR>} />
         <Route path="/student/apps" element={<PR roles={["student"]}><MyApplications /></PR>} />
+        <Route path="/student/profile" element={<PR roles={["student"]}><StudentProfile /></PR>} />
       </Route>
     </Routes>
   </Router>

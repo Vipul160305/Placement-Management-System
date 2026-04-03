@@ -102,9 +102,22 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     clearAuth();
   }, [clearAuth]);
 
+  const refreshUser = useCallback(async () => {
+    try {
+      const { data } = await httpClient.get("/api/users/me");
+      const payload = unwrapLoginResponse(data) as { user?: User } | undefined;
+      if (payload?.user) {
+        setUser(payload.user);
+        localStorage.setItem("pms_user", JSON.stringify(payload.user));
+      }
+    } catch {
+      /* best-effort */
+    }
+  }, []);
+
   return (
     <AuthContext.Provider
-      value={{ user, login, logout, isAuthenticated: !!user, loading }}
+      value={{ user, login, logout, refreshUser, isAuthenticated: !!user, loading }}
     >
       {loading ? (
         <div className="min-h-screen flex items-center justify-center bg-gray-50 text-primary font-medium">

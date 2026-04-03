@@ -10,6 +10,7 @@ import {
   ClipboardList,
   BarChart2,
   Building2,
+  UserCircle,
   X,
 } from "lucide-react";
 
@@ -62,6 +63,7 @@ const Sidebar = ({
             <SidebarLink to="/tpo/create" icon={Briefcase} label="Placement Drives" onClick={closeSidebar} />
             <SidebarLink to="/tpo/companies" icon={Building2} label="Companies" onClick={closeSidebar} />
             <SidebarLink to="/tpo/applications" icon={ClipboardList} label="Applications" onClick={closeSidebar} />
+            <SidebarLink to="/tpo/profile-requests" icon={UserCircle} label="Profile Requests" onClick={closeSidebar} />
             <SidebarLink to="/tpo/stats" icon={BarChart2} label="Analytics" onClick={closeSidebar} />
             <SidebarLink to="/tpo/users" icon={Users} label="Users" onClick={closeSidebar} />
           </>
@@ -77,6 +79,7 @@ const Sidebar = ({
         return (
           <>
             <SidebarLink to="/student" icon={LayoutDashboard} label="Dashboard" onClick={closeSidebar} />
+            <SidebarLink to="/student/profile" icon={UserCircle} label="My Profile" onClick={closeSidebar} />
             <SidebarLink to="/student/drives" icon={Briefcase} label="Job Openings" onClick={closeSidebar} />
             <SidebarLink to="/student/apps" icon={FileText} label="Applications" onClick={closeSidebar} />
           </>
