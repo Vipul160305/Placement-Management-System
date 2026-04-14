@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { Search, Briefcase, CalendarDays, CheckCircle, Loader2, AlertTriangle } from "lucide-react";
+import { Search, Briefcase, CalendarDays, CheckCircle, Loader2, AlertTriangle, ChevronDown, ChevronUp } from "lucide-react";
 import Badge from "../../components/ui/Badge";
 import { useAuth } from "../../context/AuthContext";
 import { useToast } from "../../context/ToastContext";
-import { listDrives, listMyApplications, applyToDrive } from "../../services/api";
+import { listDrives, listMyApplications, applyToDrive, updateApplicationStatus } from "../../services/api";
 import { Link } from "react-router-dom";
+import ConfirmModal from "../../components/ui/ConfirmModal";
 
 interface DriveRow {
   id: string;
@@ -13,11 +14,18 @@ interface DriveRow {
   package?: string;
   status?: string;
   scheduledAt?: string;
+  description?: string;
+  minCgpa?: number;
+  maxBacklogs?: number;
+  allowedBranches?: string[];
   company?: { name?: string } | string;
   eligibility?: { eligible?: boolean; reasons?: string[] };
 }
 
 interface AppRow {
+  id?: string;
+  _id?: string;
+  status?: string;
   drive?: string | { id?: string; _id?: string };
 }
 
@@ -46,6 +54,12 @@ const DriveList = () => {
   const [applyingId, setApplyingId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"all" | "eligible" | "applied">("all");
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [offerAction, setOfferAction] = useState<{ driveId: string; appId: string; action: "accepted" | "declined" } | null>(null);
+  const [actioning, setActioning] = useState(false);
+  const [offeredIds, setOfferedIds] = useState(() => new Set<string>());
+  // map driveId → applicationId (for offer accept/decline)
+  const [appIdMap, setAppIdMap] = useState<Record<string, string>>({});
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -56,6 +70,19 @@ const DriveList = () => {
       const apps = (appsRes as { applications?: AppRow[] }).applications || [];
       const ids = new Set(apps.map(driveIdFromApp).filter(Boolean) as string[]);
       setAppliedIds(ids);
+      // build driveId → appId map
+      const map: Record<string, string> = {};
+      for (const app of apps) {
+        const did = driveIdFromApp(app);
+        const aid = (app as { id?: string; _id?: string }).id || (app as { id?: string; _id?: string })._id;
+        if (did && aid) map[did] = aid;
+      }
+      setAppIdMap(map);
+      // track offered drives
+      const offeredSet = new Set(
+        apps.filter((a) => a.status === "offered").map(driveIdFromApp).filter(Boolean) as string[]
+      );
+      setOfferedIds(offeredSet);
     } catch (e) {
       const message = e instanceof Error ? e.message : "Failed to load drives";
       addToast(message, "error");
@@ -95,6 +122,25 @@ const DriveList = () => {
       addToast(message, "error");
     } finally {
       setApplyingId(null);
+    }
+  };
+
+  const handleOfferAction = async () => {
+    if (!offerAction) return;
+    setActioning(true);
+    try {
+      const nextStatus = offerAction.action === "accepted" ? "offered" : "withdrawn";
+      await updateApplicationStatus(offerAction.appId, nextStatus);
+      if (offerAction.action === "declined") {
+        setOfferedIds((prev) => { const s = new Set(prev); s.delete(offerAction.driveId); return s; });
+        setAppliedIds((prev) => { const s = new Set(prev); s.delete(offerAction.driveId); return s; });
+      }
+      addToast(offerAction.action === "accepted" ? "Offer accepted! Congratulations 🎉" : "Offer declined", offerAction.action === "accepted" ? "success" : "info");
+      setOfferAction(null);
+    } catch (e) {
+      addToast(e instanceof Error ? e.message : "Action failed", "error");
+    } finally {
+      setActioning(false);
     }
   };
 
@@ -196,6 +242,7 @@ const DriveList = () => {
               typeof drive.company === "object" && drive.company?.name ? drive.company.name : "Company";
             const eligible = !!drive.eligibility?.eligible;
             const isApplied = appliedIds.has(drive.id);
+            const isOffered = offeredIds.has(drive.id);
             const isOpen = drive.status === "open";
             const reasons = drive.eligibility?.reasons || [];
 
@@ -230,8 +277,14 @@ const DriveList = () => {
                       </div>
                     </div>
                   </div>
-                  <div className="flex-shrink-0">
-                    {isApplied ? (
+                  <div className="flex-shrink-0 flex flex-col items-end gap-2">
+                    {isOffered ? (
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-semibold text-green-600 bg-green-50 border border-green-200 px-2.5 py-1 rounded-full">🏆 Offer received</span>
+                        <button type="button" onClick={() => setOfferAction({ driveId: drive.id, appId: appIdMap[drive.id] || "", action: "declined" })}
+                          className="text-xs px-3 py-1.5 rounded-lg border border-red-200 text-red-600 hover:bg-red-50">Decline</button>
+                      </div>
+                    ) : isApplied ? (
                       <span className="flex items-center gap-2 text-green-600 text-sm font-medium">
                         <CheckCircle size={16} className="fill-green-600 text-white" /> Applied
                       </span>
@@ -247,8 +300,29 @@ const DriveList = () => {
                         {applyingId === drive.id ? "Applying…" : "Apply now"}
                       </button>
                     )}
+                    <button type="button" onClick={() => setExpandedId(expandedId === drive.id ? null : drive.id)}
+                      className="text-xs text-gray-400 hover:text-gray-600 flex items-center gap-1">
+                      {expandedId === drive.id ? <><ChevronUp size={12} /> Less</> : <><ChevronDown size={12} /> Details</>}
+                    </button>
                   </div>
                 </div>
+
+                {/* Expanded details */}
+                {expandedId === drive.id && (
+                  <div className="mt-4 pt-4 border-t border-gray-100 space-y-3">
+                    {drive.description && (
+                      <p className="text-sm text-gray-600 leading-relaxed">{drive.description}</p>
+                    )}
+                    <div className="flex flex-wrap gap-3 text-xs text-gray-500">
+                      <span className="bg-gray-50 border border-gray-100 rounded-lg px-2.5 py-1">Min CGPA: <strong className="text-gray-800">{drive.minCgpa ?? 0}</strong></span>
+                      <span className="bg-gray-50 border border-gray-100 rounded-lg px-2.5 py-1">Max backlogs: <strong className="text-gray-800">{drive.maxBacklogs ?? 0}</strong></span>
+                      <span className="bg-gray-50 border border-gray-100 rounded-lg px-2.5 py-1">
+                        Branches: <strong className="text-gray-800">{(drive.allowedBranches || []).join(", ") || "All"}</strong>
+                      </span>
+                    </div>
+                  </div>
+                )}
+
                 {!eligible && reasons.length > 0 && (
                   <div className="mt-4 pt-4 border-t border-red-100 text-xs text-red-600 space-y-1">
                     {reasons.map((r, i) => (
@@ -261,6 +335,18 @@ const DriveList = () => {
           })}
         </div>
       )}
+
+      <ConfirmModal
+        open={!!offerAction}
+        onClose={() => setOfferAction(null)}
+        onConfirm={handleOfferAction}
+        title="Decline Offer"
+        message="Are you sure you want to decline this offer?"
+        subMessage="This will withdraw your application. This action cannot be undone."
+        confirmLabel="Yes, decline"
+        danger
+        loading={actioning}
+      />
     </div>
   );
 };

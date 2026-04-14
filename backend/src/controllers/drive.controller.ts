@@ -77,14 +77,25 @@ export async function listDrives(req: Request, res: Response): Promise<void> {
     return;
   }
 
+  // Attach application counts for non-student roles
+  const driveIds = drives.map((d) => d._id);
+  const counts = await Application.aggregate([
+    { $match: { drive: { $in: driveIds } } },
+    { $group: { _id: "$drive", count: { $sum: 1 } } },
+  ]);
+  const countMap = new Map(counts.map((c) => [c._id.toString(), c.count as number]));
+
   sendSuccess(res, 200, {
-    drives: drives.map((d) => ({ ...serializeDrive(d), company: d.company })),
+    drives: drives.map((d) => ({
+      ...serializeDrive(d),
+      company: d.company,
+      applicationCount: countMap.get(d.id) ?? 0,
+    })),
     total,
     page,
     pages: Math.ceil(total / limit),
   });
 }
-
 export async function getDrive(req: Request, res: Response): Promise<void> {
   const { id } = req.params;
   if (!mongoose.Types.ObjectId.isValid(id)) {

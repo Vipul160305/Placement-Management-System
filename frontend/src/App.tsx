@@ -4,6 +4,9 @@ import { AuthProvider, useAuth } from "./context/AuthContext";
 import { ToastProvider } from "./context/ToastContext";
 import type { Role } from "./types/auth";
 import Login from "./pages/Login";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
+import Register from "./pages/Register";
 import DashboardLayout from "./components/Layout/DashboardLayout";
 
 // Dashboards
@@ -77,6 +80,9 @@ const AppRoutes = () => (
   <Router>
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/register" element={<Register />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/" element={<DashboardRouter />} />
 
       <Route element={<DashboardLayout />}>

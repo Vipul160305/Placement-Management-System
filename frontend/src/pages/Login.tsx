@@ -1,6 +1,6 @@
 import { useState, type CSSProperties, type FormEvent } from "react";
 import { useAuth } from "../context/AuthContext";
-import { Navigate, useNavigate } from "react-router-dom";
+import { Navigate, useNavigate, Link } from "react-router-dom";
 import {
   GraduationCap, Loader2, User, Users, Briefcase, ArrowRight, ArrowLeft,
 } from "lucide-react";
@@ -197,6 +197,16 @@ const Login = () => {
                   {submitting ? "Signing in…" : "Sign in"}
                 </button>
               </form>
+              <div className="flex items-center justify-between mt-4">
+                <Link to="/forgot-password" className="text-xs text-gray-400 hover:text-primary transition-colors">
+                  Forgot password?
+                </Link>
+                {selectedRole === "student" && (
+                  <Link to="/register" className="text-xs text-gray-400 hover:text-primary transition-colors">
+                    New student? Create account
+                  </Link>
+                )}
+              </div>
             </>
           )}
         </div>

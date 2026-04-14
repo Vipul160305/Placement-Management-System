@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, type ChangeEvent, type FormEvent } from "react";
-import { Plus, CalendarDays, ChevronDown, ChevronUp, Pencil } from "lucide-react";
+import { Plus, CalendarDays, ChevronDown, ChevronUp, Pencil, Search, Users } from "lucide-react";
 import Modal from "../../components/ui/Modal";
 import ConfirmModal from "../../components/ui/ConfirmModal";
 import Badge from "../../components/ui/Badge";
@@ -41,6 +41,7 @@ interface DriveRow {
   maxBacklogs?: number;
   allowedBranches?: string[];
   description?: string;
+  applicationCount?: number;
   company?: { id?: string; name?: string } | string;
   sectionAssignments?: { department?: string; sections?: string[] }[];
 }
@@ -67,6 +68,7 @@ const DrivesPage = () => {
   const companyInputRef = useRef<HTMLInputElement>(null);
   const selectedCompanyRef = useRef<CompanyOption | null>(null);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [search, setSearch] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<DriveRow | null>(null);
   const [deleting, setDeleting] = useState(false);
   const { addToast } = useToast();
@@ -91,8 +93,13 @@ const DrivesPage = () => {
     load();
   }, [load]);
 
-  const drives =
-    statusFilter === "all" ? allDrives : allDrives.filter((d) => d.status === statusFilter);
+  const drives = (statusFilter === "all" ? allDrives : allDrives.filter((d) => d.status === statusFilter))
+    .filter((d) => {
+      if (!search.trim()) return true;
+      const q = search.toLowerCase();
+      const company = typeof d.company === "object" ? d.company?.name || "" : "";
+      return company.toLowerCase().includes(q) || (d.title || "").toLowerCase().includes(q) || (d.jobRole || "").toLowerCase().includes(q);
+    });
 
   const openAdd = () => {
     setEditing(null);
@@ -265,6 +272,14 @@ const DrivesPage = () => {
         ))}
       </div>
 
+      {/* Search */}
+      <div className="relative">
+        <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+        <input value={search} onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search by company, title or role…"
+          className="w-full pl-9 pr-4 py-2.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary" />
+      </div>
+
       {loading ? (
         <div className="card text-center py-12 text-gray-400">Loading drives…</div>
       ) : drives.length === 0 ? (
@@ -292,6 +307,11 @@ const DrivesPage = () => {
                         {drive.jobRole ? ` · ${drive.jobRole}` : ""}
                         {drive.package ? ` · ${drive.package}` : ""}
                       </p>
+                      {drive.applicationCount !== undefined && (
+                        <p className="text-xs text-gray-400 mt-0.5 flex items-center gap-1">
+                          <Users size={11} /> {drive.applicationCount} application{drive.applicationCount !== 1 ? "s" : ""}
+                        </p>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center gap-3 flex-shrink-0 flex-wrap">
@@ -384,7 +404,8 @@ const DrivesPage = () => {
         </div>
       )}
 
-      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editing ? "Edit Placement Drive" : "Create Placement Drive"} size="xl">        <form onSubmit={handleSave} className="space-y-5">
+      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editing ? "Edit Placement Drive" : "Create Placement Drive"} size="xl">
+        <form onSubmit={handleSave} className="space-y-5">
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">

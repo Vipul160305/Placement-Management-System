@@ -192,7 +192,18 @@ export async function getTPOAnalytics(): Promise<TPOAnalyticsResult> {  const [o
   };
 }
 
-/* Profile edit requests */
+/* Auth extras */
+export async function forgotPassword(email: string) {
+  return apiPost("/api/auth/forgot-password", { email });
+}
+
+export async function resetPassword(token: string, password: string) {
+  return apiPost("/api/auth/reset-password", { token, password });
+}
+
+export async function registerStudent(body: object) {
+  return apiPost("/api/auth/register", body);
+}
 export async function submitProfileEditRequest(changes: object) {
   return apiPost("/api/profile/edit-requests", changes);
 }

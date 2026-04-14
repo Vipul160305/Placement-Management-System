@@ -13,12 +13,13 @@ const transporter = nodemailer.createTransport({
 
 async function sendMail(to: string, subject: string, html: string): Promise<void> {
   if (!env.smtpUser || !env.smtpPass) {
-    // Email not configured — skip silently in dev
     console.log(`[email] skipped (SMTP not configured): ${subject} → ${to}`);
     return;
   }
   await transporter.sendMail({ from: env.smtpFrom, to, subject, html });
 }
+
+export { sendMail };
 
 /** Notify student when their application status changes */
 export async function sendApplicationStatusEmail(opts: {
