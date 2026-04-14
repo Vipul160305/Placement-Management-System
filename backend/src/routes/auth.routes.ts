@@ -8,6 +8,7 @@ import {
 } from "../validators/auth.validators.js";
 import * as auth from "../controllers/auth.controller.js";
 import { authenticate } from "../middleware/auth.js";
+import { loginLimiter } from "../middleware/rateLimiter.js";
 
 export const authRouter = Router();
 
@@ -17,7 +18,7 @@ authRouter.post(
   validateRequest,
   asyncHandler(auth.register)
 );
-authRouter.post("/login", loginRules, validateRequest, asyncHandler(auth.login));
+authRouter.post("/login", loginLimiter, loginRules, validateRequest, asyncHandler(auth.login));
 authRouter.post(
   "/refresh",
   refreshRules,

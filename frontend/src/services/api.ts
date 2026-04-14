@@ -38,7 +38,6 @@ export async function listUsers(params: Record<string, string> = {}) {
   const q = new URLSearchParams(params).toString();
   return apiGet(q ? `/api/users?${q}` : "/api/users");
 }
-
 export async function createUser(body: object) {
   return apiPost("/api/users", body);
 }

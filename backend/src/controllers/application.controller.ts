@@ -7,6 +7,7 @@ import { sendSuccess } from "../utils/apiResponse.js";
 import { AppError } from "../utils/AppError.js";
 import { recordAudit } from "../services/auditService.js";
 import { applicationFilterForRole } from "../services/applicationScope.js";
+import { sendApplicationStatusEmail } from "../services/emailService.js";
 import type { ApplicationStatus } from "../models/Application.js";
 
 const TERMINAL: ApplicationStatus[] = ["offered", "rejected", "withdrawn"];
@@ -47,23 +48,36 @@ export async function listMyApplications(
 export async function listApplications(req: Request, res: Response): Promise<void> {
   const role = req.user!.role;
   if (role === "hr" && !req.user!.companyId) {
-    sendSuccess(res, 200, { applications: [] });
+    sendSuccess(res, 200, { applications: [], total: 0, page: 1, pages: 1 });
     return;
   }
 
   const filter = await applicationFilterForRole(req);
 
-  const apps = await Application.find(filter)
-    .populate("student", "name email department section branch cgpa backlogCount")
-    .populate({
-      path: "drive",
-      select: "title status company sectionAssignments",
-      populate: { path: "company", select: "name" },
-    })
-    .sort({ updatedAt: -1 })
-    .limit(500);
+  const page = Math.max(1, parseInt((req.query.page as string) || "1", 10));
+  const limit = Math.min(100, Math.max(1, parseInt((req.query.limit as string) || "50", 10)));
+  const skip = (page - 1) * limit;
 
-  sendSuccess(res, 200, { applications: apps });
+  const [apps, total] = await Promise.all([
+    Application.find(filter)
+      .populate("student", "name email department section branch cgpa backlogCount")
+      .populate({
+        path: "drive",
+        select: "title status company sectionAssignments",
+        populate: { path: "company", select: "name" },
+      })
+      .sort({ updatedAt: -1 })
+      .skip(skip)
+      .limit(limit),
+    Application.countDocuments(filter),
+  ]);
+
+  sendSuccess(res, 200, {
+    applications: apps,
+    total,
+    page,
+    pages: Math.ceil(total / limit),
+  });
 }
 
 export async function updateApplicationStatus(
@@ -143,6 +157,19 @@ export async function updateApplicationStatus(
       select: "title company",
       populate: { path: "company", select: "name" },
     });
+
+  // Send email notification to student (fire-and-forget — don't block response)
+  const student = fresh?.student as { name?: string; email?: string } | null;
+  const drive = fresh?.drive as { title?: string; company?: { name?: string } } | null;
+  if (student?.email && ["shortlisted", "offered", "rejected"].includes(nextStatus)) {
+    sendApplicationStatusEmail({
+      studentEmail: student.email,
+      studentName: student.name ?? "Student",
+      companyName: drive?.company?.name ?? "the company",
+      driveTitle: drive?.title ?? "the drive",
+      status: nextStatus,
+    }).catch(() => {}); // silently ignore email errors
+  }
 
   sendSuccess(res, 200, { application: fresh });
 }

@@ -5,6 +5,7 @@ import { ProfileEditRequest } from "../models/ProfileEditRequest.js";
 import { sendSuccess } from "../utils/apiResponse.js";
 import { AppError } from "../utils/AppError.js";
 import { recordAudit } from "../services/auditService.js";
+import { sendProfileEditRequestEmail, sendProfileReviewEmail } from "../services/emailService.js";
 
 /** Student: submit a profile edit request */
 export async function submitEditRequest(req: Request, res: Response): Promise<void> {
@@ -39,6 +40,19 @@ export async function submitEditRequest(req: Request, res: Response): Promise<vo
     entityId: request.id,
     metadata: { changes },
   });
+
+  // Notify all TPO users by email (fire-and-forget)
+  const student = await User.findById(studentId).select("name email");
+  if (student) {
+    const tpoUsers = await User.find({ role: "tpo" }).select("email").limit(5);
+    for (const tpo of tpoUsers) {
+      sendProfileEditRequestEmail({
+        tpoEmail: tpo.email,
+        studentName: student.name,
+        studentEmail: student.email,
+      }).catch(() => {});
+    }
+  }
 
   sendSuccess(res, 201, { request });
 }
@@ -117,6 +131,17 @@ export async function reviewEditRequest(req: Request, res: Response): Promise<vo
   const populated = await ProfileEditRequest.findById(request.id)
     .populate("student", "name email department section branch cgpa backlogCount")
     .populate("reviewedBy", "name");
+
+  // Notify student of the review outcome (fire-and-forget)
+  const studentUser = populated?.student as { name?: string; email?: string } | null;
+  if (studentUser?.email) {
+    sendProfileReviewEmail({
+      studentEmail: studentUser.email,
+      studentName: studentUser.name ?? "Student",
+      action: action as "approved" | "rejected",
+      reviewNote: request.reviewNote,
+    }).catch(() => {});
+  }
 
   sendSuccess(res, 200, { request: populated });
 }

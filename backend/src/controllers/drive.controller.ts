@@ -53,32 +53,35 @@ export async function listDrives(req: Request, res: Response): Promise<void> {
     query = keys.length === 0 ? hrClause : { $and: [query, hrClause] };
   }
 
-  const drives = await Drive.find(query)
-    .populate("company", "name website contactEmail")
-    .sort({ createdAt: -1 })
-    .limit(200);
+  const page = Math.max(1, parseInt((req.query.page as string) || "1", 10));
+  const limit = Math.min(100, Math.max(1, parseInt((req.query.limit as string) || "50", 10)));
+  const skip = (page - 1) * limit;
+
+  const [drives, total] = await Promise.all([
+    Drive.find(query)
+      .populate("company", "name website contactEmail")
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit),
+    Drive.countDocuments(query),
+  ]);
 
   if (role === "student") {
     const student = await User.findById(req.user!.id);
-    if (!student) {
-      throw new AppError(404, "User not found", "NOT_FOUND");
-    }
+    if (!student) throw new AppError(404, "User not found", "NOT_FOUND");
     const withEligibility = drives.map((d) => {
       const ev = evaluateEligibility(student, d);
-      return {
-        ...serializeDrive(d),
-        eligibility: ev,
-      };
+      return { ...serializeDrive(d), eligibility: ev };
     });
-    sendSuccess(res, 200, { drives: withEligibility });
+    sendSuccess(res, 200, { drives: withEligibility, total, page, pages: Math.ceil(total / limit) });
     return;
   }
 
   sendSuccess(res, 200, {
-    drives: drives.map((d) => ({
-      ...serializeDrive(d),
-      company: d.company,
-    })),
+    drives: drives.map((d) => ({ ...serializeDrive(d), company: d.company })),
+    total,
+    page,
+    pages: Math.ceil(total / limit),
   });
 }
 

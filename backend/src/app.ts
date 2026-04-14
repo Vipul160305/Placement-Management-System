@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import { env } from "./config/env.js";
 import { errorHandler } from "./middleware/errorHandler.js";
+import { apiLimiter } from "./middleware/rateLimiter.js";
 import { sendSuccess } from "./utils/apiResponse.js";
 import { authRouter } from "./routes/auth.routes.js";
 import { userRouter } from "./routes/user.routes.js";
@@ -23,6 +24,9 @@ export function createApp() {
     })
   );
   app.use(express.json());
+
+  // Apply general rate limit to all API routes
+  app.use("/api", apiLimiter);
 
   app.get("/health", (_req, res) => {
     sendSuccess(res, 200, { ok: true });

@@ -42,13 +42,30 @@ export async function me(req: Request, res: Response): Promise<void> {
 }
 
 export async function listUsers(req: Request, res: Response): Promise<void> {
-  const { role } = req.query as { role?: string };
-  const filter =
-    role && ["admin", "tpo", "coordinator", "student"].includes(role)
-      ? { role }
-      : {};
-  const users = await User.find(filter).sort({ createdAt: -1 }).limit(500);
-  sendSuccess(res, 200, { users: users.map(publicUser) });
+  const { role, search } = req.query as { role?: string; search?: string };
+
+  const filter: Record<string, unknown> = {};
+  if (role && ["tpo", "hr", "student"].includes(role)) filter.role = role;
+  if (search?.trim()) {
+    const re = new RegExp(search.trim(), "i");
+    filter.$or = [{ name: re }, { email: re }];
+  }
+
+  const page = Math.max(1, parseInt((req.query.page as string) || "1", 10));
+  const limit = Math.min(100, Math.max(1, parseInt((req.query.limit as string) || "50", 10)));
+  const skip = (page - 1) * limit;
+
+  const [users, total] = await Promise.all([
+    User.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit),
+    User.countDocuments(filter),
+  ]);
+
+  sendSuccess(res, 200, {
+    users: users.map(publicUser),
+    total,
+    page,
+    pages: Math.ceil(total / limit),
+  });
 }
 
 export async function createUser(req: Request, res: Response): Promise<void> {

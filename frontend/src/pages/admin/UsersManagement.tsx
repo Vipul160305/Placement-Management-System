@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback, type ChangeEvent, type FormEv
 import { Search, Plus, Pencil, Trash2, Users, Upload } from "lucide-react";
 import Modal from "../../components/ui/Modal";
 import ConfirmModal from "../../components/ui/ConfirmModal";
+import Pagination from "../../components/ui/Pagination";
 import Badge from "../../components/ui/Badge";
 import { useToast } from "../../context/ToastContext";
 import { listUsers, createUser, updateUser, deleteUser, importStudentsCsv } from "../../services/api";
@@ -114,6 +115,9 @@ const UsersManagement = () => {
   const [listLoading, setListLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
+  const [page, setPage] = useState(1);
+  const [pages, setPages] = useState(1);
+  const [total, setTotal] = useState(0);
   const [modalOpen, setModalOpen] = useState(false);
   const [editUser, setEditUser] = useState<ListUser | null>(null);
   const [form, setForm] = useState<FormState>(BLANK_USER);
@@ -121,30 +125,33 @@ const UsersManagement = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { addToast } = useToast();
 
-  const loadUsers = useCallback(async () => {
+  const loadUsers = useCallback(async (p = 1) => {
     setListLoading(true);
     try {
-      const { users: rows } = (await listUsers()) as { users?: ListUser[] };
-      setUsers(rows || []);
+      const params: Record<string, string> = { page: String(p), limit: "50" };
+      if (roleFilter !== "all") params.role = roleFilter;
+      if (searchTerm.trim()) params.search = searchTerm.trim();
+      const res = (await listUsers(params)) as {
+        users?: ListUser[];
+        total?: number;
+        pages?: number;
+        page?: number;
+      };
+      setUsers(res.users || []);
+      setTotal(res.total ?? 0);
+      setPages(res.pages ?? 1);
+      setPage(res.page ?? 1);
     } catch (e) {
-      const message = e instanceof Error ? e.message : "Failed to load users";
-      addToast(message, "error");
+      addToast(e instanceof Error ? e.message : "Failed to load users", "error");
     } finally {
       setListLoading(false);
     }
-  }, [addToast]);
+  }, [addToast, roleFilter, searchTerm]);
 
-  useEffect(() => {
-    loadUsers();
-  }, [loadUsers]);
+  useEffect(() => { loadUsers(1); }, [loadUsers]);
 
-  const filtered = users.filter((u) => {
-    const matchSearch =
-      u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      u.email.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchRole = roleFilter === "all" || u.role === roleFilter;
-    return matchSearch && matchRole;
-  });
+  // filtering is now server-side — users array is already filtered
+  const filtered = users;
 
   const openAdd = () => {
     setEditUser(null);
@@ -257,7 +264,8 @@ const UsersManagement = () => {
 
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
         {(["student", "tpo", "hr"] as Role[]).map((role) => (
-          <div key={role} className="card !p-4 text-center">
+          <div key={role} className="card !p-4 text-center cursor-pointer hover:border-primary/30 transition-colors"
+            onClick={() => setRoleFilter(roleFilter === role ? "all" : role)}>
             <div className="text-2xl font-bold text-gray-900">{users.filter((u) => u.role === role).length}</div>
             <div className="text-sm text-gray-500 capitalize mt-0.5">{role === "hr" ? "HR" : role}s</div>
           </div>
@@ -358,6 +366,8 @@ const UsersManagement = () => {
           </table>
         </div>
       </div>
+
+      <Pagination page={page} pages={pages} total={total} onPage={(p) => loadUsers(p)} />
 
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editUser ? "Edit User" : "Add New User"} size="lg">
         <form onSubmit={handleSave} className="space-y-4">

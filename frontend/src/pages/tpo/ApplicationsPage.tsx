@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { Search, Loader2, Users, ChevronDown, FileText } from "lucide-react";
 import Badge from "../../components/ui/Badge";
+import Pagination from "../../components/ui/Pagination";
 import { useToast } from "../../context/ToastContext";
 import { useAuth } from "../../context/AuthContext";
 import { listApplications, updateApplicationStatus, getStudentResumeUrl } from "../../services/api";
@@ -74,21 +75,31 @@ const ApplicationsPage = () => {
   const [statusFilter, setStatusFilter] = useState<AppStatus | "all">("all");
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [confirmAction, setConfirmAction] = useState<{ app: ApplicationRow; next: AppStatus } | null>(null);
+  const [page, setPage] = useState(1);
+  const [pages, setPages] = useState(1);
+  const [total, setTotal] = useState(0);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (p = 1) => {
     setLoading(true);
     try {
-      const res = (await listApplications()) as { applications?: ApplicationRow[] };
+      const res = (await listApplications({ page: String(p), limit: "50" })) as {
+        applications?: ApplicationRow[];
+        total?: number;
+        pages?: number;
+        page?: number;
+      };
       setApplications(res.applications || []);
+      setTotal(res.total ?? 0);
+      setPages(res.pages ?? 1);
+      setPage(res.page ?? 1);
     } catch (e) {
-      const message = e instanceof Error ? e.message : "Failed to load applications";
-      addToast(message, "error");
+      addToast(e instanceof Error ? e.message : "Failed to load applications", "error");
     } finally {
       setLoading(false);
     }
   }, [addToast]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { load(1); }, [load]);
 
   const transitions = ROLE_TRANSITIONS[user?.role || ""] || [];
 
@@ -166,7 +177,7 @@ const ApplicationsPage = () => {
           <button
             key={tab.key}
             type="button"
-            onClick={() => setStatusFilter(tab.key)}
+            onClick={() => { setStatusFilter(tab.key); load(1); }}}
             className={`px-4 py-2 text-sm font-medium capitalize border-b-2 transition-colors ${
               statusFilter === tab.key
                 ? "border-primary text-primary"
@@ -285,6 +296,10 @@ const ApplicationsPage = () => {
             );
           })}
         </div>
+      )}
+
+      {!loading && pages > 1 && (
+        <Pagination page={page} pages={pages} total={total} onPage={(p) => load(p)} />
       )}
 
       <ConfirmModal
