@@ -13,7 +13,7 @@ const transporter = nodemailer.createTransport({
 
 async function sendMail(to: string, subject: string, html: string): Promise<void> {
   if (!env.smtpUser || !env.smtpPass || env.smtpUser === "your_email@gmail.com") {
-    console.log(`[email] skipped (SMTP not configured or placeholder used): ${subject} → ${to}`);
+    console.log(`[email] skip: ${subject}`);
     return;
   }
   try {

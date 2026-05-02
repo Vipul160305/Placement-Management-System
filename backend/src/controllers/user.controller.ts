@@ -199,7 +199,7 @@ function uploadToCloudinary(
       {
         folder: RESUME_FOLDER,
         public_id: publicId,
-        resource_type: "image", // Bypass raw ACL failure; Cloudinary handles PDFs as images automatically
+        resource_type: "image",
         overwrite: true,
         format: "pdf",
       },
