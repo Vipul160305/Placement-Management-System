@@ -201,11 +201,6 @@ const Login = () => {
                 <Link to="/forgot-password" className="text-xs text-gray-400 hover:text-primary transition-colors">
                   Forgot password?
                 </Link>
-                {selectedRole === "student" && (
-                  <Link to="/register" className="text-xs text-gray-400 hover:text-primary transition-colors">
-                    New student? Create account
-                  </Link>
-                )}
               </div>
             </>
           )}

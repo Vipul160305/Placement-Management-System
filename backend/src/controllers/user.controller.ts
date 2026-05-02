@@ -199,7 +199,7 @@ function uploadToCloudinary(
       {
         folder: RESUME_FOLDER,
         public_id: publicId,
-        resource_type: "raw", // PDF is a raw file, not an image
+        resource_type: "image", // Bypass raw ACL failure; Cloudinary handles PDFs as images automatically
         overwrite: true,
         format: "pdf",
       },
@@ -224,6 +224,7 @@ export async function uploadResume(req: Request, res: Response): Promise<void> {
   // Delete old resume from Cloudinary if exists
   if (user.resumePublicId) {
     await cloudinary.uploader.destroy(user.resumePublicId, { resource_type: "raw" }).catch(() => {});
+    await cloudinary.uploader.destroy(user.resumePublicId, { resource_type: "image" }).catch(() => {});
   }
 
   const publicId = `resume_${userId}`;
@@ -241,9 +242,15 @@ export async function uploadResume(req: Request, res: Response): Promise<void> {
     metadata: { filename: req.file.originalname },
   });
 
+  const privateUrl = cloudinary.utils.private_download_url(
+    public_id,
+    "pdf",
+    { type: "upload", resource_type: "image" }
+  );
+
   sendSuccess(res, 200, {
     message: "Resume uploaded successfully",
-    resumeUrl: secure_url,
+    resumeUrl: privateUrl,
     uploadDate: new Date().toISOString(),
   });
 }
@@ -252,8 +259,15 @@ export async function getResume(req: Request, res: Response): Promise<void> {
   const userId = req.user!.id;
   const user = await User.findById(userId);
   if (!user) throw new AppError(404, "User not found", "NOT_FOUND");
-  if (!user.resumeUrl) throw new AppError(404, "No resume uploaded yet", "NOT_FOUND");
-  sendSuccess(res, 200, { resumeUrl: user.resumeUrl });
+  if (!user.resumeUrl || !user.resumePublicId) throw new AppError(404, "No resume uploaded yet", "NOT_FOUND");
+  
+  const privateUrl = cloudinary.utils.private_download_url(
+    user.resumePublicId,
+    "pdf",
+    { type: "upload", resource_type: "image" }
+  );
+  
+  sendSuccess(res, 200, { resumeUrl: privateUrl });
 }
 
 /** Staff (tpo, hr) view a specific student's resume */
@@ -266,8 +280,15 @@ export async function getStudentResume(req: Request, res: Response): Promise<voi
   if (!student || student.role !== "student") {
     throw new AppError(404, "Student not found", "NOT_FOUND");
   }
-  if (!student.resumeUrl) {
+  if (!student.resumeUrl || !student.resumePublicId) {
     throw new AppError(404, "Student has not uploaded a resume", "NOT_FOUND");
   }
-  sendSuccess(res, 200, { resumeUrl: student.resumeUrl });
+
+  const privateUrl = cloudinary.utils.private_download_url(
+    student.resumePublicId,
+    "pdf",
+    { type: "upload", resource_type: "image" }
+  );
+
+  sendSuccess(res, 200, { resumeUrl: privateUrl });
 }

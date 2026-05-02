@@ -5,7 +5,7 @@ import { useAuth } from "../../context/AuthContext";
 import { Link } from "react-router-dom";
 
 const StudentDashboard = () => {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const [hasResume, setHasResume] = useState<boolean>(!!user?.hasResume);
   const [uploading, setUploading] = useState(false);
   const [stats, setStats] = useState({ total: 0, inProgress: 0, offers: 0 });
@@ -51,6 +51,7 @@ const StudentDashboard = () => {
       const formData = new FormData();
       formData.append("resume", file);
       await uploadStudentResume(formData);
+      await refreshUser();
       setHasResume(true);
       addToast("Resume uploaded successfully", "success");
     } catch (error) {

@@ -17,7 +17,7 @@ driveRouter.post(
 
 driveRouter.put(
   "/:id/assignments",
-  authorize("admin", "tpo"),
+  authorize("tpo"),
   asyncHandler(drive.putAssignments)
 );
 

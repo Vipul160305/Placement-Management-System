@@ -4,7 +4,7 @@ import { env } from "./env.js";
 cloudinary.config({
   cloud_name: env.cloudinaryCloudName,
   api_key: env.cloudinaryApiKey,
-  api_secret: env.cloudinaryApiSecret,
+  api_secret: env.cloudinaryApiSecret
 });
 
 export { cloudinary };

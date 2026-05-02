@@ -12,11 +12,15 @@ const transporter = nodemailer.createTransport({
 });
 
 async function sendMail(to: string, subject: string, html: string): Promise<void> {
-  if (!env.smtpUser || !env.smtpPass) {
-    console.log(`[email] skipped (SMTP not configured): ${subject} → ${to}`);
+  if (!env.smtpUser || !env.smtpPass || env.smtpUser === "your_email@gmail.com") {
+    console.log(`[email] skipped (SMTP not configured or placeholder used): ${subject} → ${to}`);
     return;
   }
-  await transporter.sendMail({ from: env.smtpFrom, to, subject, html });
+  try {
+    await transporter.sendMail({ from: env.smtpFrom, to, subject, html });
+  } catch (error) {
+    console.error(`[email] failed to send email to ${to}:`, error);
+  }
 }
 
 export { sendMail };
