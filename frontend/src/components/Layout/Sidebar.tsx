@@ -1,4 +1,6 @@
+import { useState } from "react";
 import { NavLink } from "react-router-dom";
+import ConfirmModal from "../ui/ConfirmModal";
 import type { LucideIcon } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import {
@@ -49,6 +51,7 @@ const Sidebar = ({
   setIsOpen: (open: boolean) => void;
 }) => {
   const { user, logout } = useAuth();
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   if (!user) return null;
 
@@ -113,13 +116,26 @@ const Sidebar = ({
           </div>
         </div>
         <button
-          onClick={logout}
+          onClick={() => setShowLogoutConfirm(true)}
           className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:text-red-600 hover:bg-red-50 transition-colors"
         >
           <LogOut size={16} />
           <span>Sign Out</span>
         </button>
       </div>
+
+      <ConfirmModal
+        open={showLogoutConfirm}
+        onClose={() => setShowLogoutConfirm(false)}
+        onConfirm={async () => {
+          setShowLogoutConfirm(false);
+          await logout();
+        }}
+        title="Sign Out"
+        message="Are you sure you want to sign out?"
+        confirmLabel="Yes, sign out"
+        danger={true}
+      />
     </div>
   );
 };
