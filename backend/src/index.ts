@@ -16,7 +16,9 @@ function ensureDbConnection() {
   return dbConnectionPromise;
 }
 
-export default async function handler(req: any, res: any) {
+const handler = async (req: any, res: any) => {
   await ensureDbConnection();
   return app(req, res);
-}
+};
+
+module.exports = handler;
