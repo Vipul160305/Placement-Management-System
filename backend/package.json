@@ -2,7 +2,7 @@
   "name": "placement-backend",
   "version": "1.0.0",
   "private": true,
-  "type": "module",
+  "type": "commonjs",
     "engines": {
     "node": "22.x"
   },
